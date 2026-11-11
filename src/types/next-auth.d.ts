@@ -13,6 +13,8 @@ declare module "next-auth" {
       hasRefreshToken?: boolean;
       hasIdToken?: boolean;
     };
+    /** Google ID token, sent to authApi.googleSession after Google sign-in. */
+    idToken?: string;
   }
 }
 
@@ -26,5 +28,6 @@ declare module "next-auth/jwt" {
     hasAccessToken?: boolean;
     hasRefreshToken?: boolean;
     hasIdToken?: boolean;
+    idToken?: string;
   }
 }

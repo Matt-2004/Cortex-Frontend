@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ResetPassword from "../ui/resetPassword";
 import { useSearchParams } from "next/navigation";
@@ -75,11 +75,11 @@ describe("ResetPassword", () => {
   it("renders reset password form content", () => {
     render(<ResetPassword />);
 
-    expect(screen.getByText(/create new password/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /set a new password/i })).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        /your new password must be different from your previous password/i,
+        /your new password must be different from your previous one/i,
       ),
     ).toBeInTheDocument();
 
@@ -87,7 +87,7 @@ describe("ResetPassword", () => {
     expect(getConfirmPasswordInput()).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: /change password/i }),
+      screen.getByRole("button", { name: /update password/i }),
     ).toBeInTheDocument();
   });
 
@@ -111,12 +111,12 @@ describe("ResetPassword", () => {
     await user.type(getNewPasswordInput(), "newPassword123");
     await user.type(getConfirmPasswordInput(), "newPassword123");
 
-    await user.click(screen.getByRole("button", { name: /change password/i }));
+    await user.click(screen.getByRole("button", { name: /update password/i }));
 
     expect(mockHandleFormSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("disables button when form is invalid", () => {
+  it("keeps the submit button enabled when the form is invalid so errors can be shown", () => {
     mockedUseResetPassword.mockReturnValue({
       isPending: false,
       handleFormSubmit: mockHandleFormSubmit,
@@ -128,9 +128,34 @@ describe("ResetPassword", () => {
 
     render(<ResetPassword />);
 
+    // A disabled button gives no feedback; the hook shows field errors instead.
     expect(
-      screen.getByRole("button", { name: /change password/i }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: /update password/i }),
+    ).toBeEnabled();
+  });
+
+  it("shows an invalid-link message instead of the form when the token is missing", () => {
+    mockedUseResetPassword.mockReturnValue({
+      isPending: false,
+      handleFormSubmit: mockHandleFormSubmit,
+      formData: defaultFormData,
+      setFormData: jest.fn(),
+      validationErrors: {},
+      isFormValid: false,
+      hasToken: false,
+    });
+
+    render(<ResetPassword />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /this reset link is invalid or incomplete/i,
+    );
+    expect(
+      screen.getByRole("link", { name: /request a new reset link/i }),
+    ).toHaveAttribute("href", "/auth/forgot-password");
+    expect(
+      screen.queryByRole("button", { name: /update password/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows loading state when reset password is pending", () => {
@@ -148,7 +173,7 @@ describe("ResetPassword", () => {
     expect(screen.getByRole("button", { name: /processing/i })).toBeDisabled();
   });
 
-  it("shows validation errors from useResetPassword when fields are focused and have values", () => {
+  it("shows the password checklist and shows field errors after blur", () => {
     mockedUseResetPassword.mockReturnValue({
       isPending: false,
       handleFormSubmit: mockHandleFormSubmit,
@@ -166,14 +191,17 @@ describe("ResetPassword", () => {
 
     render(<ResetPassword />);
 
-    getNewPasswordInput().focus();
+    // The requirements checklist is always visible under the new password.
+    const requirements = screen.getByRole("list", {
+      name: /password requirements/i,
+    });
+    expect(requirements).toHaveTextContent(/at least 8 characters/i);
+    expect(requirements).toHaveTextContent(/at least 1 uppercase letter/i);
+    expect(requirements).toHaveTextContent(/at least 1 symbol/i);
 
-    expect(
-      screen.getByText(/password must be at least 8 characters/i),
-    ).toBeInTheDocument();
-
-    getNewPasswordInput().blur();
-    getConfirmPasswordInput().focus();
+    // Field errors only appear after the user leaves the field.
+    expect(screen.queryByText(/passwords do not match/i)).not.toBeInTheDocument();
+    fireEvent.blur(getConfirmPasswordInput());
 
     expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
   });

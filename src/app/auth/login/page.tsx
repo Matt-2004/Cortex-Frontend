@@ -2,9 +2,9 @@ import { Metadata } from "next";
 import Login from "../../features/auth/signIn/ui/Login";
 
 export const metadata: Metadata = {
-  title: "Login - Gear Up",
+  title: "Sign in · Cortex",
   description:
-    "Login to your Gear Up account to access your profile and manage your vehicles.",
+    "Sign in to Cortex to manage your website assistant, documents and sources.",
 };
 
 const Page = () => {

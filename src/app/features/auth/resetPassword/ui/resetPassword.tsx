@@ -1,12 +1,18 @@
 "use client";
 
-import Image from "next/image";
 import Button from "@/app/shared/ui/Button";
 import Input from "@/app/shared/ui/Input";
 import {
-  AuthPageCaption,
-  AuthPageContainer,
+  AUTH_TITLE_ID,
+  AuthAlert,
+  AuthFooterText,
+  AuthLink,
+  AuthSplitLayout,
+  authFormClassName,
+  authPrimaryButtonClassName,
+  PasswordRequirements,
 } from "@/app/features/auth/ui/AuthComponents";
+import { PASSWORD_MAX_LENGTH } from "@/app/features/auth/utils/typeSchema";
 import { useSearchParams } from "next/navigation";
 import { useResetPassword } from "../hooks/useResetPassword";
 
@@ -20,106 +26,108 @@ const ResetPassword = () => {
     formData,
     setFormData,
     validationErrors,
-    isFormValid,
+    showAllErrors,
+    submitAttempt,
+    hasToken = true,
   } = useResetPassword(token);
 
   return (
-    <AuthPageContainer>
-      <div
-        className="w-full max-w-md rounded-3xl border p-8"
-        style={{
-          background: "#111711",
-          borderColor: "rgba(255,255,255,0.08)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-        }}
-      >
-        <div className="mb-6 flex justify-end">
-          <Image
-            src="/logo.png"
-            alt="Gear Up"
-            width={150}
-            height={34}
-            priority
-          />
+    <AuthSplitLayout
+      eyebrow="Account security"
+      headline="Choose a strong new password."
+      title="Set a new password"
+      subtitle="Your new password must be different from your previous one."
+    >
+      {!hasToken ? (
+        <div className="flex flex-col gap-4">
+          <AuthAlert title="This reset link is invalid or incomplete">
+            Open the link from your email again, or request a new one.
+          </AuthAlert>
+          <AuthFooterText>
+            <AuthLink href="/auth/forgot-password" direction="forward">
+              Request a new reset link
+            </AuthLink>
+          </AuthFooterText>
         </div>
-
-        <AuthPageCaption>Create new password</AuthPageCaption>
-        <p className="mb-6 mt-2 text-sm text-[#A5A5A5]">
-          Your new password must be different from your previous password.
-        </p>
-
+      ) : (
+        /* noValidate: we show our own accessible errors instead of browser bubbles */
         <form
           onSubmit={handleFormSubmit}
-          className="flex w-full flex-col gap-4
-            [&_label]:!text-[#A5A5A5]
-            [&_input]:!bg-[#1A221A]
-            [&_input]:!text-white
-            [&_input]:!border-gray-600
-            [&_input]:!placeholder-[#8A8A8A]
-            [&_input:focus]:!outline-none
-            [&_input:focus]:!ring-0
-            [&_input:focus]:!shadow-[0_0_0_4px_rgba(95,212,74,0.12)]
-            [&_svg]:!text-[#8A8A8A]
-            [&_svg:hover]:!text-[#A5A5A5]
-          "
+          noValidate
+          aria-labelledby={AUTH_TITLE_ID}
+          aria-busy={isPending || undefined}
+          className={authFormClassName}
         >
-          <div className="w-full">
-            <Input
-              name="newPassword"
-              data-testid="new-password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              type="password"
-              placeholder="Enter your new password (minimum 8 characters)"
-              value={formData.newPassword}
-              error={validationErrors.newPassword}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  newPassword: e.target.value.trim(),
-                }))
-              }
-            >
-              New Password
-            </Input>
-          </div>
+          <Input
+            id="newPassword"
+            name="newPassword"
+            data-testid="new-password"
+            required
+            maxLength={PASSWORD_MAX_LENGTH}
+            autoComplete="new-password"
+            type="password"
+            placeholder="Create a new password"
+            value={formData.newPassword}
+            error={
+              validationErrors?.newPassword
+                ? "Your password doesn't meet all the requirements"
+                : undefined
+            }
+            forceShowError={showAllErrors}
+            shakeSignal={submitAttempt}
+            hint={<PasswordRequirements password={formData.newPassword} />}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                // Never trim passwords: spaces are valid characters.
+                newPassword: e.target.value,
+              }))
+            }
+          >
+            New password
+          </Input>
 
-          <div className="w-full">
-            <Input
-              data-testid="confirm-password"
-              name="confirmedPassword"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              type="password"
-              placeholder="Re-enter your new password"
-              value={formData.confirmedPassword}
-              error={validationErrors.confirmedPassword}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  confirmedPassword: e.target.value.trim(),
-                }))
-              }
-            >
-              Confirm Password
-            </Input>
-          </div>
+          <Input
+            id="confirmedPassword"
+            data-testid="confirm-password"
+            name="confirmedPassword"
+            required
+            maxLength={PASSWORD_MAX_LENGTH}
+            autoComplete="new-password"
+            type="password"
+            placeholder="Re-enter your new password"
+            value={formData.confirmedPassword}
+            error={validationErrors?.confirmedPassword}
+            forceShowError={showAllErrors}
+            shakeSignal={submitAttempt}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                confirmedPassword: e.target.value,
+              }))
+            }
+          >
+            Confirm password
+          </Input>
 
           <div className="mt-2 w-full">
             <Button
+              type="submit"
               width="full"
               loading={isPending}
-              disabled={!isFormValid}
-              className="!bg-primary-600 !text-white !shadow-[0_4px_6px_rgba(0,0,0,0.15)] !transition-all !duration-200 hover:!bg-primary-600/80 hover:!shadow-[0_4px_8px_rgba(0,0,0,0.15)] active:!scale-[0.98]"
+              className={authPrimaryButtonClassName}
             >
-              Change Password
+              Update password
             </Button>
           </div>
+
+          <AuthFooterText>
+            Remembered it?{" "}
+            <AuthLink href="/auth/login" direction="back">Back to sign in</AuthLink>
+          </AuthFooterText>
         </form>
-      </div>
-    </AuthPageContainer>
+      )}
+    </AuthSplitLayout>
   );
 };
 

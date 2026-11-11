@@ -29,21 +29,3 @@ export async function token_integration(data: Tokens, rememberMe?: boolean) {
     refreshTokenCookieOptions,
   );
 }
-
-export async function user_data_integration(
-  userData: string,
-  rememberMe?: boolean,
-) {
-  const cookieStore = await cookies();
-  const isProduction = process.env.NODE_ENV === "production";
-  const sameSite = isProduction ? ("none" as const) : ("lax" as const);
-
-  const userDataCookieOptions = {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite,
-    ...(rememberMe ? { maxAge: 60 * 60 * 24 * 7 } : {}),
-  };
-
-  cookieStore.set("user_data", userData, userDataCookieOptions);
-}

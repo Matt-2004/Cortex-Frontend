@@ -1,24 +1,16 @@
 "use server";
 
-import { AdminLoginDTO } from "@/app/features/profiles/admin/types/admin.types";
 import {
   LoginInputDTO,
   ResetPasswordInputDTO,
 } from "@/app/features/auth/types/auth.types";
-import { IAdminUpdateStatus } from "@/app/features/profiles/dealer/types/kyc.types";
-import { CreateMessageDTO } from "@/app/features/messaging/types/message.types";
 import { BACKEND_API_URL } from "@/app/shared/utils/config";
 import { getServerAccessToken } from "@/app/shared/utils/AuthUtils/tokenUtils";
 import axios from "axios";
-import { SubmitVehicle } from "@/app/features/profiles/dealer/context/AddNewCarContext";
 import { EmailValidationRequest } from "@/app/features/auth/emailValidation/types/email-validation-request";
 import { SignUpDTO } from "@/app/features/auth/signUp/types/sign-up-dto";
 import { MainResponse } from "@/app/shared/types.ts/main-response";
 import { normalizeError } from "./axios-error";
-import { CreatePostDTO } from "@/app/features/post/types/post.dto";
-import { AddCommentDTO } from "@/app/features/comment/types/comment.dto";
-import { IReviewSubmissionDTO } from "@/app/features/review/types/review.dto";
-import { createAppointmentDTO } from "@/app/features/appointments/types/appointment.dto";
 import { cookies } from "next/headers";
 import { Tokens } from "@/app/features/auth/signIn/types/sign-in-response";
 import { token_integration } from "../AuthUtils/CookieIntegration";
@@ -208,17 +200,8 @@ type PostFetchAvailableType =
   | EmailValidationRequest
   | LoginInputDTO
   | ResetPasswordInputDTO
-  | AdminLoginDTO
   | FormData
-  | null
-  | AddCommentDTO
-  | createAppointmentDTO
-  | CreatePostDTO
-  | Omit<CreatePostDTO, "carId">
-  | CreateMessageDTO
-  | IReviewSubmissionDTO
-  | Omit<IReviewSubmissionDTO, "dealerId">
-  | SubmitVehicle;
+  | null;
 
 export async function postFetch<T>(
   url: string,
@@ -229,12 +212,7 @@ export async function postFetch<T>(
 
 export async function putFetch(
   url: string,
-  data:
-    | FormData
-    | IAdminUpdateStatus
-    | string
-    | Omit<IReviewSubmissionDTO, "dealerId">
-    | Omit<CreatePostDTO, "carId">,
+  data: FormData | string,
 ): Promise<MainResponse<null>> {
   return request<MainResponse<null>>("put", url, data);
 }

@@ -9,7 +9,7 @@ export default function RegisterLayout({
 }
 
 export const metadata: Metadata = {
-	title: "Register - Gear Up",
+	title: "Create account · Cortex",
 	description:
-		"Create a Gear Up account to access exclusive features and personalized content.",
+    "Create a Cortex account and embed an AI assistant on your website, powered by your own documents.",
 }
