@@ -41,9 +41,10 @@ export default function ErrorPage({
   };
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
+    <main className="flex min-h-[60vh] items-center justify-center px-4">
+      <div role="alert" className="w-full max-w-sm text-center">
         <div
+          aria-hidden="true"
           className={`mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl ${iconBg}`}
         >
           <div className={`${iconColor} [&>svg]:h-8 [&>svg]:w-8`}>{icon}</div>
@@ -61,7 +62,7 @@ export default function ErrorPage({
             href={homeHref}
             className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50 active:scale-[0.98]"
           >
-            <Home className="h-4 w-4" />
+            <Home aria-hidden="true" className="h-4 w-4" />
             {homeLabel}
           </Link>
           <button
@@ -79,6 +80,6 @@ export default function ErrorPage({
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

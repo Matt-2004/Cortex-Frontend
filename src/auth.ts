@@ -23,6 +23,8 @@ export const authOptions: NextAuthOptions = {
         token.hasAccessToken = Boolean(account.access_token);
         token.hasRefreshToken = Boolean(account.refresh_token);
         token.hasIdToken = Boolean(account.id_token);
+        // Exchanged once for Cortex session cookies on /auth/google/callback.
+        token.idToken = account.id_token;
       }
 
       return token;
@@ -39,6 +41,7 @@ export const authOptions: NextAuthOptions = {
         hasRefreshToken: token.hasRefreshToken,
         hasIdToken: token.hasIdToken,
       };
+      session.idToken = token.idToken;
 
       return session;
     },

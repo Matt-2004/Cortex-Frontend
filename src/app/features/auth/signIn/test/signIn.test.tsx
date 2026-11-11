@@ -127,7 +127,7 @@ describe("Login", () => {
     render(<Login />);
 
     const loginButton = screen.getByRole("button", {
-      name: /login/i,
+      name: /^sign in$/i,
     });
 
     await user.click(loginButton);
@@ -153,7 +153,7 @@ describe("Login", () => {
     render(<Login />);
 
     const registerLink = screen.getByRole("link", {
-      name: /register now/i,
+      name: /create an account/i,
     });
 
     await user.click(registerLink);

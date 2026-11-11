@@ -150,7 +150,8 @@ describe("useResetPassword", () => {
       "/auth/login",
     );
 
-    expect(result.current.isPending).toBe(false);
+    // Stays locked after success until the redirect, to prevent double submits.
+    expect(result.current.isPending).toBe(true);
   });
 
   it("sets isPending to true while reset password request is running", async () => {
@@ -187,7 +188,8 @@ describe("useResetPassword", () => {
       await submitPromise;
     });
 
-    expect(result.current.isPending).toBe(false);
+    // Stays locked after success until the redirect, to prevent double submits.
+    expect(result.current.isPending).toBe(true);
   });
 
   it("handles failed reset password response and still shows toast", async () => {

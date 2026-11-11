@@ -96,7 +96,27 @@ describe("useEmailValidation", () => {
       "/auth/login",
     );
 
-    expect(result.current.isPending).toBe(false);
+    // Stays locked after success until the redirect, to prevent double submits.
+    expect(result.current.isPending).toBe(true);
+  });
+
+  it("sends the verification variant so the verify page doesn't trigger a password reset", async () => {
+    mockedEmailValidationAction.mockResolvedValue({
+      isSuccess: true,
+      message: "Verification email sent",
+      data: null,
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useEmailValidation("verification"));
+
+    await act(async () => {
+      await result.current.handleFormSubmit(createMockSubmitEvent());
+    });
+
+    const submittedFormData = mockedEmailValidationAction.mock
+      .calls[0][0] as FormData;
+    expect(submittedFormData.get("variant")).toBe("verification");
   });
 
   it("sets isPending to true while email validation request is running", async () => {
@@ -133,7 +153,8 @@ describe("useEmailValidation", () => {
       await submitPromise;
     });
 
-    expect(result.current.isPending).toBe(false);
+    // Stays locked after success until the redirect, to prevent double submits.
+    expect(result.current.isPending).toBe(true);
   });
 
   it("handles failed response and still shows toast", async () => {

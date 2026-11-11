@@ -2,9 +2,9 @@ import { Metadata } from "next";
 import Register from "../../features/auth/signUp/ui/Register";
 
 export const metadata: Metadata = {
-  title: "Register - Gear Up",
+  title: "Create account · Cortex",
   description:
-    "Create a new Gear Up account to buy, sell, and discover amazing vehicles.",
+    "Create a Cortex account and embed an AI assistant on your website, powered by your own documents.",
 };
 
 const Page = () => {

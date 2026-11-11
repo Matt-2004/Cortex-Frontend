@@ -1,63 +1,111 @@
-import { useState } from "react";
-import { RegisterSchema } from "../../utils/typeSchema";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { LoginSchema } from "../../utils/typeSchema";
 import { useAuthForm } from "../../../../shared/hooks/useAuthForm";
 import { useToast } from "@/app/features/toast/hooks/useToast";
-import { signInAction } from "../utils/signInAction";
-import {
-  token_integration,
-  user_data_integration,
-} from "@/app/shared/utils/AuthUtils/CookieIntegration";
-import { UserFetch } from "@/app/shared/utils/AuthUtils/UserFetch";
-import { encrypt } from "@/app/shared/utils/AuthUtils/encryption";
-import { useUserData } from "@/app/features/navbar/context/UserDataContext";
-import { UserMapper } from "@/app/features/profiles/user/types/user.mapper";
+import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
+import { focusFirstInvalidField } from "@/app/shared/utils/focusFirstInvalid";
+import { authApi } from "../../api/authApi";
+import type { LoginRequest } from "../../types/auth-api.types";
 
-// formData --> handleFromSubmit() --> signUpAction --> toast
-const initialLoginFormData = {
-  usernameOrEmail: "",
+// formData --> handleFormSubmit() --> authApi.login (sets session cookies) --> redirect
+
+export const PATH_AFTER_SIGN_IN = "/dashboard";
+
+const initialLoginFormData: LoginRequest = {
+  email: "",
   password: "",
-  rememberMe: false,
 };
 
 export const useSignIn = () => {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { refreshUserData } = useUserData();
+  const [showAllErrors, setShowAllErrors] = useState(false);
+  // Bumped on every failed submit so invalid fields shake again.
+  const [submitAttempt, setSubmitAttempt] = useState(0);
+  const isSubmittingRef = useRef(false);
 
-  const { handleToast } = useToast({
-    toastType: null,
-    message: null,
-  });
-  const { formData, setFormData } = useAuthForm(
-    initialLoginFormData,
-    RegisterSchema,
-  );
+  // Set when login returns 403 (email not verified): shows the resend action.
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  // The backend's 403 message, shown as-is in the banner.
+  const [unverifiedMessage, setUnverifiedMessage] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+
+  const { addToastMessage } = useToast();
+  const handleApiError = useApiErrorHandler();
+
+  // Login only checks that fields are filled in — never password rules.
+  const { formData, setFormData, validationErrors, isFormValid, setServerErrors } =
+    useAuthForm(initialLoginFormData, LoginSchema);
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
 
-    const submitData = new FormData();
-    submitData.append("usernameOrEmail", formData.usernameOrEmail);
-    submitData.append("password", formData.password);
-    setIsPending(true);
-
-    // signInAction will return access_token & refresh_token
-    const res = await signInAction(submitData);
-    // to reduce server load for fetching user data, save the user encrypted data in cookie
-    if (res.isSuccess && res.data) {
-      // set tokens in cookie
-      await token_integration(res.data, formData.rememberMe);
-
-      // promise-chain for setting user data in cookie
-      const userRes = await UserFetch();
-      const userData = UserMapper(userRes.data);
-      const encryptedUserData = await encrypt(userData);
-      await user_data_integration(encryptedUserData, formData.rememberMe);
-
-      await refreshUserData();
+    if (isFormValid === false) {
+      setShowAllErrors(true);
+      setSubmitAttempt((n) => n + 1);
+      focusFirstInvalidField(e.currentTarget);
+      return;
     }
 
-    setIsPending(false);
-    handleToast(res, "/");
+    const email = formData.email.trim();
+    isSubmittingRef.current = true;
+    setIsPending(true);
+    setUnverifiedEmail(null);
+    let succeeded = false;
+    try {
+      // Send the password exactly as typed (spaces are valid characters).
+      await authApi.login({ email, password: formData.password });
+      succeeded = true;
+      addToastMessage("success", "Signed in.");
+      router.push(PATH_AFTER_SIGN_IN);
+    } catch (error) {
+      handleApiError(error, {
+        onFieldErrors: (errors) => {
+          setServerErrors(errors);
+          setShowAllErrors(true);
+        },
+        onStatus: {
+          403: (apiError) => {
+            setUnverifiedEmail(email);
+            setUnverifiedMessage(apiError.message);
+            return true; // shown inline, with a resend action
+          },
+        },
+      });
+    } finally {
+      // On success keep the button locked until the redirect happens.
+      if (!succeeded) {
+        isSubmittingRef.current = false;
+        setIsPending(false);
+      }
+    }
+  };
+
+  const resendVerification = async () => {
+    if (!unverifiedEmail || isResending) return;
+    setIsResending(true);
+    try {
+      await authApi.resendVerification({ email: unverifiedEmail });
+      addToastMessage(
+        "success",
+        "Verification email sent. Check your inbox for the link.",
+      );
+    } catch (error) {
+      handleApiError(error, {
+        onStatus: {
+          409: (apiError) => {
+            // Already verified: they can just sign in.
+            setUnverifiedEmail(null);
+            addToastMessage("info", apiError.message);
+            return true;
+          },
+        },
+      });
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return {
@@ -65,5 +113,12 @@ export const useSignIn = () => {
     handleFormSubmit,
     formData,
     setFormData,
+    validationErrors,
+    showAllErrors,
+    submitAttempt,
+    unverifiedEmail,
+    unverifiedMessage,
+    isResending,
+    resendVerification,
   };
 };

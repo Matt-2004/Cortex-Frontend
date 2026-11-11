@@ -1,14 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useSignIn } from "../hooks/useSignIn";
 import { signInAction } from "../utils/signInAction";
-import {
-  token_integration,
-  user_data_integration,
-} from "@/app/shared/utils/AuthUtils/CookieIntegration";
-import { UserFetch } from "@/app/shared/utils/AuthUtils/UserFetch";
-import { encrypt } from "@/app/shared/utils/AuthUtils/encryption";
+import { token_integration } from "@/app/shared/utils/AuthUtils/CookieIntegration";
 import { useToast } from "@/app/features/toast/hooks/useToast";
-import { useUserData } from "@/app/features/navbar/context/UserDataContext";
 
 jest.mock("../utils/signInAction", () => ({
   signInAction: jest.fn(),
@@ -16,46 +10,24 @@ jest.mock("../utils/signInAction", () => ({
 
 jest.mock("@/app/shared/utils/AuthUtils/CookieIntegration", () => ({
   token_integration: jest.fn(),
-  user_data_integration: jest.fn(),
-}));
-
-jest.mock("@/app/shared/utils/AuthUtils/UserFetch", () => ({
-  UserFetch: jest.fn(),
-}));
-
-jest.mock("@/app/shared/utils/AuthUtils/encryption", () => ({
-  encrypt: jest.fn(),
 }));
 
 jest.mock("@/app/features/toast/hooks/useToast", () => ({
   useToast: jest.fn(),
 }));
 
-jest.mock("@/app/features/navbar/context/UserDataContext", () => ({
-  useUserData: jest.fn(),
-}));
-
 const mockedSignInAction = signInAction as jest.Mock;
 const mockedTokenIntegration = token_integration as jest.Mock;
-const mockedUserDataIntegration = user_data_integration as jest.Mock;
-const mockedUserFetch = UserFetch as jest.Mock;
-const mockedEncrypt = encrypt as jest.Mock;
 const mockedUseToast = useToast as jest.Mock;
-const mockedUseUserData = useUserData as jest.Mock;
 
 describe("useSignIn", () => {
   const mockHandleToast = jest.fn();
-  const mockRefreshUserData = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockedUseToast.mockReturnValue({
       handleToast: mockHandleToast,
-    });
-
-    mockedUseUserData.mockReturnValue({
-      refreshUserData: mockRefreshUserData,
     });
   });
 
@@ -100,18 +72,6 @@ describe("useSignIn", () => {
       status: 200,
     });
 
-    mockedUserFetch.mockResolvedValue({
-      isSuccess: true,
-      message: "User fetched",
-      data: {
-        id: "user-1",
-        name: "John Doe",
-      },
-      status: 200,
-    });
-
-    mockedEncrypt.mockResolvedValue("encrypted-user-data");
-
     const { result } = renderHook(() => useSignIn());
 
     act(() => {
@@ -147,27 +107,6 @@ describe("useSignIn", () => {
       true,
     );
 
-    expect(mockedUserFetch).toHaveBeenCalledTimes(1);
-
-    expect(mockedEncrypt).toHaveBeenCalledWith({
-      id: "user-1",
-      provider: undefined,
-      displayName: undefined,
-      email: undefined,
-      realName: "John Doe",
-      role: undefined,
-      dateOfBirth: undefined,
-      phone: undefined,
-      profileImage: undefined,
-    });
-
-    expect(mockedUserDataIntegration).toHaveBeenCalledWith(
-      "encrypted-user-data",
-      true,
-    );
-
-    expect(mockRefreshUserData).toHaveBeenCalledTimes(1);
-
     expect(mockHandleToast).toHaveBeenCalledWith(
       {
         isSuccess: true,
@@ -181,10 +120,11 @@ describe("useSignIn", () => {
       "/",
     );
 
-    expect(result.current.isPending).toBe(false);
+    // Stays locked after success until the redirect, to prevent double submits.
+    expect(result.current.isPending).toBe(true);
   });
 
-  it("does not save token or user data when login fails", async () => {
+  it("does not save tokens when login fails", async () => {
     mockedSignInAction.mockResolvedValue({
       isSuccess: false,
       message: "Invalid credentials",
@@ -213,10 +153,6 @@ describe("useSignIn", () => {
     expect(mockedSignInAction).toHaveBeenCalledTimes(1);
 
     expect(mockedTokenIntegration).not.toHaveBeenCalled();
-    expect(mockedUserFetch).not.toHaveBeenCalled();
-    expect(mockedEncrypt).not.toHaveBeenCalled();
-    expect(mockedUserDataIntegration).not.toHaveBeenCalled();
-    expect(mockRefreshUserData).not.toHaveBeenCalled();
 
     expect(mockHandleToast).toHaveBeenCalledWith(
       {

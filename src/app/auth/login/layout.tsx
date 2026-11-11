@@ -10,7 +10,7 @@ export default async function LoginLayout({
 }
 
 export const metadata: Metadata = {
-	title: "Login - Gear Up",
+	title: "Sign in · Cortex",
 	description:
-		"Login to your Gear Up account to access exclusive features and personalized content.",
+    "Sign in to Cortex to manage your website assistant, documents and sources.",
 }

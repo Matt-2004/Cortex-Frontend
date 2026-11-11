@@ -55,10 +55,10 @@ describe("EmailValidation", () => {
   it("renders reset password variant content", () => {
     render(<EmailValidation variant="reset-password" />);
 
-    expect(screen.getByText(/reset password/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /reset your password/i })).toBeInTheDocument();
 
     expect(
-      screen.getByText(/enter the email address associated with your account/i),
+      screen.getByText(/enter the email address for your account/i),
     ).toBeInTheDocument();
 
     expect(
@@ -67,7 +67,7 @@ describe("EmailValidation", () => {
 
     expect(getEmailInput()).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /login now/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /back to sign in/i })).toHaveAttribute(
       "href",
       "/auth/login",
     );
@@ -76,10 +76,10 @@ describe("EmailValidation", () => {
   it("renders verification variant content", () => {
     render(<EmailValidation variant="verification" />);
 
-    expect(screen.getByText(/email verification/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /verify your email/i })).toBeInTheDocument();
 
     expect(
-      screen.getByText(/enter your email to receive a verification link/i),
+      screen.getByText(/we'll send you a verification link/i),
     ).toBeInTheDocument();
 
     expect(
@@ -90,7 +90,7 @@ describe("EmailValidation", () => {
 
     expect(getEmailInput()).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /login now/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /back to sign in/i })).toHaveAttribute(
       "href",
       "/auth/login",
     );
@@ -134,7 +134,7 @@ describe("EmailValidation", () => {
     expect(mockHandleFormSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("disables button when form is invalid", () => {
+  it("keeps the submit button enabled when the form is invalid so errors can be shown", () => {
     mockedUseEmailValidation.mockReturnValue({
       isPending: false,
       handleFormSubmit: mockHandleFormSubmit,
@@ -146,9 +146,10 @@ describe("EmailValidation", () => {
 
     render(<EmailValidation variant="reset-password" />);
 
+    // A disabled button gives no feedback; the hook shows field errors instead.
     expect(
       screen.getByRole("button", { name: /send reset link/i }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 
   it("shows loading state when request is pending", () => {

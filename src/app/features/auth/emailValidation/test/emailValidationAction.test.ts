@@ -1,6 +1,12 @@
 import { emailValidationAction } from "../utils/emailValidationAction";
 import { postFetch } from "@/app/shared/utils/API/AxiosClient";
 
+// Behave as if the real backend URL is configured (skip the 2s demo mode).
+jest.mock("../../utils/mockBackend", () => ({
+  isBackendConfigured: () => true,
+  mockAuthResponse: jest.fn(),
+}));
+
 jest.mock("@/app/shared/utils/API/AxiosClient", () => ({
   postFetch: jest.fn(),
 }));
@@ -31,10 +37,28 @@ describe("emailValidationAction", () => {
     expect(mockedPostFetch).toHaveBeenCalledTimes(1);
 
     expect(mockedPostFetch).toHaveBeenCalledWith(
-      "/api/v1/auth/send-password-reset-token?email=matt@example.com",
+      "/api/v1/auth/send-password-reset-token?email=matt%40example.com",
       {
         email: "matt@example.com",
       },
+    );
+  });
+
+  it("calls the resend-verification endpoint for the verification variant", async () => {
+    mockedPostFetch.mockResolvedValue({
+      isSuccess: true,
+      message: "Verification email sent",
+      data: null,
+      status: 200,
+    });
+
+    const formData = createEmailValidationFormData();
+    formData.append("variant", "verification");
+    await emailValidationAction(formData);
+
+    expect(mockedPostFetch).toHaveBeenCalledWith(
+      "/api/v1/auth/resend-verification-email?email=matt%40example.com",
+      null,
     );
   });
 

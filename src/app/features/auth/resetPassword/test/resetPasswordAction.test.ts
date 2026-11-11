@@ -1,6 +1,12 @@
 import { resetPasswordAction } from "../utils/resetPasswordAction";
 import { postFetch } from "@/app/shared/utils/API/AxiosClient";
 
+// Behave as if the real backend URL is configured (skip the 2s demo mode).
+jest.mock("../../utils/mockBackend", () => ({
+  isBackendConfigured: () => true,
+  mockAuthResponse: jest.fn(),
+}));
+
 jest.mock("@/app/shared/utils/API/AxiosClient", () => ({
   postFetch: jest.fn(),
 }));

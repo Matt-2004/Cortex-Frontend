@@ -124,7 +124,7 @@ describe("Register with userEvent", () => {
     await user.type(screen.getByTestId("confirm-password"), "password123");
     await user.click(screen.getByTestId("agree-to-terms"));
 
-    await user.click(screen.getByRole("button", { name: /register/i }));
+    await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(mockHandleFormSubmit).toHaveBeenCalledTimes(1);
   });
@@ -132,20 +132,8 @@ describe("Register with userEvent", () => {
   it("renders auth navigation links with correct hrefs", () => {
     render(<Register />);
 
-    const signInHereLink = screen.getByRole("link", {
-      name: /sign in here/i,
-    });
+    const signInLink = screen.getByRole("link", { name: /^sign in$/i });
 
-    const goBackHomeLink = screen.getByRole("link", {
-      name: /go back home/i,
-    });
-
-    const loginNowLink = screen.getByRole("link", {
-      name: /login now/i,
-    });
-
-    expect(signInHereLink).toHaveAttribute("href", "/auth/login");
-    expect(goBackHomeLink).toHaveAttribute("href", "/");
-    expect(loginNowLink).toHaveAttribute("href", "/auth/login");
+    expect(signInLink).toHaveAttribute("href", "/auth/login");
   });
 });
