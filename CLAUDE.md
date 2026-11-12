@@ -133,7 +133,12 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 - `ConsoleShell`: left sidebar (drawer below `lg`), session check, `PageHeader`
   (wash band). Building blocks in `consoleUi.tsx`: `Panel`, `Field`, `Modal`
   (native `<dialog>`), `Notice`, `NoAccess`, `ErrorState`, `RoleBadge`,
-  `SearchInput`, table styles, `Skeleton`, button classes.
+  `SearchInput`, table styles, `Skeleton`, button classes, `SideNote`.
+- A screen is one boxed `Panel` (the main table) plus unboxed `SideNote`s
+  beside it for what supports it — not a grid of matching cards. Split the two
+  with container queries (`@container`, `@4xl:`): the sidebar eats 256px.
+- Overview: status ledger (rises into the header band), recent documents
+  table, side notes. "Add content" appears once, in the header.
 - Members: three tables (Owners, Admins, Members), read-only; roles are
   changed on the member page. "Add member" sits above the tables, top right.
 - Organization tabs are deep-linkable (`?tab=settings`).

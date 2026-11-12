@@ -13,6 +13,7 @@ import { useResource } from "@/app/features/console/hooks/useResource";
 import {
   canManage,
   ORGANIZATION_LIMITS,
+  ORGANIZATION_ROLES,
   type Organization,
 } from "../types/organization.types";
 import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
@@ -25,6 +26,7 @@ import {
   Modal,
   Panel,
   RoleBadge,
+  SideNote,
   SkeletonRows,
   Spinner,
   buttonPrimary,
@@ -53,15 +55,18 @@ const slugify = (value: string) =>
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** /console — the organizations you belong to, and a way to create one. */
+/**
+ * /console/organizations — the organizations you manage, and a way to create
+ * one. The table is the page; beside it, unboxed, sits what explains it: what
+ * each role in the "Your role" column allows, and the organizations left out
+ * of the table because you are only a member there.
+ */
 export const OrganizationsHome = () => (
   <SignedIn
     fallback={
       <>
         <PageHeader title="Organizations" description={DESCRIPTION} />
-        <Container className="py-8 sm:py-10">
-          <OrganizationsTable state={{ status: "loading" }} />
-        </Container>
+        <OrganizationsLayout state={{ status: "loading" }} memberOf={[]} />
       </>
     }
   >
@@ -97,36 +102,43 @@ const Organizations = () => {
         }
       />
 
-      <Container className="py-8 sm:py-10">
-        {resource.status === "error" ? (
+      {resource.status === "error" ? (
+        <Container className="py-8 sm:py-10">
           <ErrorState
             title="Your organizations could not be loaded"
             message={resource.error.message}
             onRetry={retry}
           />
-        ) : resource.status === "ready" &&
-          resource.data.length > 0 &&
-          !resource.data.some((o) => canManage(o.role)) ? (
+        </Container>
+      ) : resource.status === "ready" &&
+        resource.data.length > 0 &&
+        !resource.data.some((o) => canManage(o.role)) ? (
+        <Container className="py-8 sm:py-10">
           <NoAccess
             title="Organizations are managed by owners and admins"
             message="You are a member of your organizations, so there is nothing to manage here. Ask an owner if you need access."
             backHref="/console"
             backLabel="Back to overview"
           />
-        ) : (
-          <OrganizationsTable
-            state={
-              resource.status === "ready"
-                ? {
-                    status: "ready",
-                    // Only the ones you can manage: a member can't open the rest.
-                    data: resource.data.filter((o) => canManage(o.role)),
-                  }
-                : resource
-            }
-          />
-        )}
-      </Container>
+        </Container>
+      ) : (
+        <OrganizationsLayout
+          state={
+            resource.status === "ready"
+              ? {
+                  status: "ready",
+                  // Only the ones you can manage: a member can't open the rest.
+                  data: resource.data.filter((o) => canManage(o.role)),
+                }
+              : resource
+          }
+          memberOf={
+            resource.status === "ready"
+              ? resource.data.filter((o) => !canManage(o.role))
+              : []
+          }
+        />
+      )}
 
       <CreateOrganizationModal
         open={creating}
@@ -136,24 +148,76 @@ const Organizations = () => {
   );
 };
 
+type TableState =
+  { status: "loading" } | { status: "ready"; data: Organization[] };
+
+/**
+ * The table, and the notes beside it once the content column is wide enough
+ * (a container query: the sidebar takes 256px of the viewport from `lg` up).
+ */
+const OrganizationsLayout = ({
+  state,
+  memberOf,
+}: {
+  state: TableState;
+  /** Organizations where the user is a plain member: named, not listed. */
+  memberOf: Organization[];
+}) => (
+  <Container className="pt-8 pb-12 sm:pt-10">
+    <div className="@container">
+      <div className="grid items-start gap-x-12 gap-y-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)]">
+        <OrganizationsTable state={state} />
+        <aside
+          aria-label="About roles"
+          className="flex min-w-0 flex-col gap-10"
+        >
+          <SideNote title="What each role can do">
+            <dl className="mt-2 divide-y divide-brand-ink/10">
+              {ORGANIZATION_ROLES.map((role) => (
+                <div key={role.value} className="flex items-start gap-3 py-3">
+                  <dt className="w-[4.5rem] shrink-0">
+                    <RoleBadge role={role.value} />
+                  </dt>
+                  <dd className={clsx("text-sm", mutedText)}>
+                    {role.description}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </SideNote>
+
+          {memberOf.length > 0 && (
+            <SideNote title="Where you are a member">
+              <ul className="mt-2 divide-y divide-brand-ink/10">
+                {memberOf.map((organization) => (
+                  <li
+                    key={organization.id}
+                    className="truncate py-2.5 text-sm font-medium"
+                  >
+                    {organization.name}
+                  </li>
+                ))}
+              </ul>
+              <p className={clsx("mt-1 text-xs", mutedText)}>
+                Not in the table: owners and admins manage these. Ask one of
+                them if you need access.
+              </p>
+            </SideNote>
+          )}
+        </aside>
+      </div>
+    </div>
+  </Container>
+);
+
 const COLUMNS = ["", "", "hidden sm:table-cell", ""];
 
-/** All your organizations as a table. Empty and loading keep the same columns. */
-const OrganizationsTable = ({
-  state,
-}: {
-  state: { status: "loading" } | { status: "ready"; data: Organization[] };
-}) => {
-  const count = state.status === "ready" ? state.data.length : null;
+/** The organizations you manage. Empty and loading keep the same columns. */
+const OrganizationsTable = ({ state }: { state: TableState }) => {
   return (
-    <Panel className="overflow-hidden">
-      <div className="flex items-baseline gap-3 px-4 py-4 sm:px-6">
-        <h2 className="text-base font-semibold">Your organizations</h2>
-        {count !== null && count > 0 && (
-          <p className={clsx("text-sm tabular-nums", mutedText)}>{count}</p>
-        )}
-      </div>
+    <Panel className="min-w-0 overflow-hidden">
       <table className={tableLook}>
+        <caption className="sr-only">Organizations you manage</caption>
         <thead>
           <tr>
             <th scope="col" className={thLook}>
