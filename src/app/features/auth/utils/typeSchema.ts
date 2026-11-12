@@ -7,7 +7,10 @@ const emailSchema = z
   .pipe(
     z
       .email("Enter a valid email address")
-      .max(AUTH_LIMITS.emailMax, `Email must be ${AUTH_LIMITS.emailMax} characters or fewer`),
+      .max(
+        AUTH_LIMITS.emailMax,
+        `Email must be ${AUTH_LIMITS.emailMax} characters or fewer`,
+      ),
   );
 
 /** The API takes one `name`; the form sends "first last". */
@@ -88,13 +91,16 @@ export const RegisterSchema = z
         ?.confirmPassword === "string",
   })
   .refine(
-    (data) => toFullName(data.firstName, data.lastName).length <= AUTH_LIMITS.nameMax,
+    (data) =>
+      toFullName(data.firstName, data.lastName).length <= AUTH_LIMITS.nameMax,
     {
       message: `First and last name together must be ${AUTH_LIMITS.nameMax} characters or fewer`,
       path: ["lastName"],
       when: (payload) => {
         const v = payload.value as { firstName?: unknown; lastName?: unknown };
-        return typeof v?.firstName === "string" && typeof v?.lastName === "string";
+        return (
+          typeof v?.firstName === "string" && typeof v?.lastName === "string"
+        );
       },
     },
   );

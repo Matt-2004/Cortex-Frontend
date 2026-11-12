@@ -33,7 +33,8 @@ export async function resetPasswordAction(
     const err = error as ErrorResponse;
     return {
       isSuccess: false,
-      message: err?.message || "We couldn't update your password. Please try again.",
+      message:
+        err?.message || "We couldn't update your password. Please try again.",
       data: null,
       status: err?.status || 500,
     };

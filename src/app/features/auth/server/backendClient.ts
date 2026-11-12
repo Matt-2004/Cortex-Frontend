@@ -8,20 +8,35 @@ import "server-only";
  * passed through unchanged — no response wrapper.
  */
 
-const BACKEND_URL = (process.env.CORTEX_BACKEND_URL ?? "http://localhost:5203").trim().replace(/\/$/, "");
+const BACKEND_URL = (process.env.CORTEX_BACKEND_URL ?? "http://localhost:5203")
+  .trim()
+  .replace(/\/$/, "");
 
 /** Calls `/api/auth{path}` on the backend. */
-export async function backendFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${BACKEND_URL}/api/auth${path}`, { ...init, cache: "no-store" });
+export async function backendFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  return fetch(`${BACKEND_URL}/api/auth${path}`, {
+    ...init,
+    cache: "no-store",
+  });
 }
 
 /** Calls `/api{path}` on the backend, for everything outside `/api/auth`. */
-export async function backendApiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+export async function backendApiFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
   return fetch(`${BACKEND_URL}/api${path}`, { ...init, cache: "no-store" });
 }
 
 /** POSTs a JSON body to `/api/auth{path}`. */
-export function backendPost(path: string, body?: unknown, headers?: HeadersInit): Promise<Response> {
+export function backendPost(
+  path: string,
+  body?: unknown,
+  headers?: HeadersInit,
+): Promise<Response> {
   const h = new Headers(headers);
   if (body !== undefined) h.set("Content-Type", "application/json");
   return backendFetch(path, {
@@ -54,9 +69,13 @@ export function forwardCredentials(request: Request): Headers {
 }
 
 /** Reads a JSON request body; returns null if it is missing or invalid. */
-export async function readJson(request: Request): Promise<Record<string, unknown> | null> {
+export async function readJson(
+  request: Request,
+): Promise<Record<string, unknown> | null> {
   const body = await request.json().catch(() => null);
-  return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+  return body && typeof body === "object" && !Array.isArray(body)
+    ? (body as Record<string, unknown>)
+    : null;
 }
 
 /** Returns the named fields as trimmed strings, or null if any is missing/empty. */
@@ -103,7 +122,8 @@ export function badRequest(detail: string): Response {
  */
 export async function relay(response: Response): Promise<Response> {
   const headers = new Headers();
-  for (const cookie of response.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
+  for (const cookie of response.headers.getSetCookie())
+    headers.append("Set-Cookie", cookie);
 
   if (response.status === 204 || response.status === 304) {
     return new Response(null, { status: response.status, headers });
@@ -114,7 +134,10 @@ export async function relay(response: Response): Promise<Response> {
 
   if (response.status >= 500 && !contentType.includes("json")) {
     console.error("[auth backend]", response.status, text.slice(0, 500));
-    const safe = problem(response.status, "Something went wrong on the server. Please try again.");
+    const safe = problem(
+      response.status,
+      "Something went wrong on the server. Please try again.",
+    );
     safe.headers.forEach((value, key) => headers.set(key, value));
     return new Response(safe.body, { status: response.status, headers });
   }
@@ -124,11 +147,16 @@ export async function relay(response: Response): Promise<Response> {
 }
 
 /** Wraps a handler so network errors (backend down) become a 503. */
-export async function withBackend(handler: () => Promise<Response>): Promise<Response> {
+export async function withBackend(
+  handler: () => Promise<Response>,
+): Promise<Response> {
   try {
     return await handler();
   } catch (error) {
     console.error("[auth backend] request failed:", error);
-    return problem(503, "The server is not reachable. Make sure it is running.");
+    return problem(
+      503,
+      "The server is not reachable. Make sure it is running.",
+    );
   }
 }

@@ -4,7 +4,10 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import { Info, Loader2, Search, X } from "lucide-react";
 import { primaryButtonLook } from "@/app/features/landing/ui/primitives";
-import { roleLabel, type OrganizationRole } from "@/app/features/organizations/types/organization.types";
+import {
+  roleLabel,
+  type OrganizationRole,
+} from "@/app/features/organizations/types/organization.types";
 
 /* ────────────────────────────────────────────────────────────
  * Building blocks for the console (/console).
@@ -257,6 +260,45 @@ export const Panel = ({
     {children}
   </div>
 );
+
+/**
+ * An unboxed side note: one heavy rule, a serif title, then plain rows. It
+ * sits beside a Panel so a screen is not a grid of equal-weight cards — the
+ * Panel carries the main list, the note carries what supports it.
+ */
+export const SideNote = ({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  /** Shown opposite the title: a count or a link. */
+  meta?: ReactNode;
+  children: ReactNode;
+}) => {
+  const titleId = useId();
+  return (
+    <section
+      aria-labelledby={titleId}
+      className="border-t-2 border-brand-ink pt-3"
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <h2
+          id={titleId}
+          className="font-display text-[22px] leading-tight tracking-[-0.01em]"
+        >
+          {title}
+        </h2>
+        {meta}
+      </div>
+      {children}
+    </section>
+  );
+};
+
+/** Text link used inside panels and side notes. */
+export const textLink =
+  "font-medium text-primary-700 underline decoration-primary-700/30 underline-offset-4 transition-colors duration-150 hover:decoration-primary-700";
 
 export const Skeleton = ({ className }: { className?: string }) => (
   <span

@@ -75,7 +75,9 @@ describe("ResetPassword", () => {
   it("renders reset password form content", () => {
     render(<ResetPassword />);
 
-    expect(screen.getByRole("heading", { name: /set a new password/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /set a new password/i }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText(
@@ -200,7 +202,9 @@ describe("ResetPassword", () => {
     expect(requirements).toHaveTextContent(/at least 1 symbol/i);
 
     // Field errors only appear after the user leaves the field.
-    expect(screen.queryByText(/passwords do not match/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/passwords do not match/i),
+    ).not.toBeInTheDocument();
     fireEvent.blur(getConfirmPasswordInput());
 
     expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();

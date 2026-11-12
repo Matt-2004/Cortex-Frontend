@@ -33,11 +33,23 @@ export const SiteHeader = () => (
         <Link href="/auth/login" className={`${textLink} hidden md:inline`}>
           Sign in
         </Link>
+        {/* Where customers manage their organizations. Signed-out visitors
+            are sent to sign in from there. */}
+        <Link
+          href="/console"
+          className="hidden h-9 items-center rounded-md border border-brand-ink/15 px-4 font-medium text-brand-ink transition-colors duration-150 hover:border-brand-ink/30 hover:bg-brand-wash md:inline-flex"
+        >
+          Console
+        </Link>
         <Link href="/auth/register" className={`${primaryButtonLook} h-9 px-4`}>
           Start free
         </Link>
         <MobileMenu
-          links={[...LINKS, { href: "/auth/login", label: "Sign in" }]}
+          links={[
+            ...LINKS,
+            { href: "/console", label: "Console" },
+            { href: "/auth/login", label: "Sign in" },
+          ]}
         />
       </div>
     </Container>

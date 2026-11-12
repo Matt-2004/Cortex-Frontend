@@ -123,7 +123,9 @@ const ResetPassword = () => {
 
           <AuthFooterText>
             Remembered it?{" "}
-            <AuthLink href="/auth/login" direction="back">Back to sign in</AuthLink>
+            <AuthLink href="/auth/login" direction="back">
+              Back to sign in
+            </AuthLink>
           </AuthFooterText>
         </form>
       )}
