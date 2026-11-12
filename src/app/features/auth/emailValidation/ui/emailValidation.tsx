@@ -128,7 +128,9 @@ const EmailValidation = ({
 
         <AuthFooterText>
           Remember your password?{" "}
-          <AuthLink href="/auth/login" direction="back">Back to sign in</AuthLink>
+          <AuthLink href="/auth/login" direction="back">
+            Back to sign in
+          </AuthLink>
         </AuthFooterText>
       </form>
     </AuthSplitLayout>

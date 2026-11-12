@@ -74,7 +74,9 @@ const VerifyToken = ({ token }: { token: string }) => {
       <div className="flex w-full flex-col gap-4">
         <AuthAlert
           tone="info"
-          title={status === "verified" ? "You're signed in" : "Checking your link…"}
+          title={
+            status === "verified" ? "You're signed in" : "Checking your link…"
+          }
         />
         <AuthFooterText>
           <AuthLink href="/auth/login" direction="back">

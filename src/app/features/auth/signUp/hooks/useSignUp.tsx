@@ -32,8 +32,13 @@ export const useSignUp = () => {
 
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
-  const { formData, setFormData, validationErrors, isFormValid, setServerErrors } =
-    useAuthForm(initialRegisterFormData, RegisterSchema);
+  const {
+    formData,
+    setFormData,
+    validationErrors,
+    isFormValid,
+    setServerErrors,
+  } = useAuthForm(initialRegisterFormData, RegisterSchema);
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,7 +66,10 @@ export const useSignUp = () => {
         password: formData.password,
       });
       succeeded = true;
-      addToastMessage("success", "Account created. Check your inbox to verify your email.");
+      addToastMessage(
+        "success",
+        "Account created. Check your inbox to verify your email.",
+      );
       router.push(checkInboxPath(email));
     } catch (error) {
       handleApiError(error, {

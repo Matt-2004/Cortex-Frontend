@@ -55,7 +55,9 @@ describe("EmailValidation", () => {
   it("renders reset password variant content", () => {
     render(<EmailValidation variant="reset-password" />);
 
-    expect(screen.getByRole("heading", { name: /reset your password/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /reset your password/i }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText(/enter the email address for your account/i),
@@ -67,16 +69,17 @@ describe("EmailValidation", () => {
 
     expect(getEmailInput()).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /back to sign in/i })).toHaveAttribute(
-      "href",
-      "/auth/login",
-    );
+    expect(
+      screen.getByRole("link", { name: /back to sign in/i }),
+    ).toHaveAttribute("href", "/auth/login");
   });
 
   it("renders verification variant content", () => {
     render(<EmailValidation variant="verification" />);
 
-    expect(screen.getByRole("heading", { name: /verify your email/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /verify your email/i }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText(/we'll send you a verification link/i),
@@ -90,10 +93,9 @@ describe("EmailValidation", () => {
 
     expect(getEmailInput()).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /back to sign in/i })).toHaveAttribute(
-      "href",
-      "/auth/login",
-    );
+    expect(
+      screen.getByRole("link", { name: /back to sign in/i }),
+    ).toHaveAttribute("href", "/auth/login");
   });
 
   it("updates email input with userEvent", async () => {

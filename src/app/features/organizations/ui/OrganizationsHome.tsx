@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
@@ -15,8 +15,13 @@ import {
   ORGANIZATION_LIMITS,
   ORGANIZATION_ROLES,
   type Organization,
+  type OrganizationMember,
 } from "../types/organization.types";
-import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
+import {
+  PageHeader,
+  SignedIn,
+  useOrganizationAccess,
+} from "@/app/features/console/ui/ConsoleShell";
 import {
   Avatar,
   EmptyTableRow,
@@ -27,6 +32,7 @@ import {
   Panel,
   RoleBadge,
   SideNote,
+  Skeleton,
   SkeletonRows,
   Spinner,
   buttonPrimary,
@@ -56,17 +62,18 @@ const slugify = (value: string) =>
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * /console/organizations — the organizations you manage, and a way to create
- * one. The table is the page; beside it, unboxed, sits what explains it: what
- * each role in the "Your role" column allows, and the organizations left out
- * of the table because you are only a member there.
+ * /console/organizations — every organization you belong to, and a way to
+ * create one. The table is the page: the ones you manage open on click and
+ * show who is in them; the ones where you are only a member are listed too,
+ * unlinked, so the list is complete. Beside it, unboxed, sits what explains
+ * the "Your role" column.
  */
 export const OrganizationsHome = () => (
   <SignedIn
     fallback={
       <>
         <PageHeader title="Organizations" description={DESCRIPTION} />
-        <OrganizationsLayout state={{ status: "loading" }} memberOf={[]} />
+        <OrganizationsLayout state={{ status: "loading" }} />
       </>
     }
   >
@@ -76,6 +83,18 @@ export const OrganizationsHome = () => (
 
 const DESCRIPTION =
   "Each organization holds one business’s assistant and the people who manage it.";
+
+const count = (n: number) => `${n} organization${n === 1 ? "" : "s"}`;
+
+/** The header's one hard fact, once the list is known. */
+const summary = (organizations: Organization[]) => {
+  const managed = organizations.filter((o) => canManage(o.role)).length;
+  const member = organizations.length - managed;
+  if (managed === 0) return DESCRIPTION;
+  return member > 0
+    ? `You manage ${count(managed)} and are a member of ${member} more.`
+    : `You manage ${count(managed)}. Each one holds a business’s assistant and its team.`;
+};
 
 const Organizations = () => {
   const [creating, setCreating] = useState(false);
@@ -89,7 +108,9 @@ const Organizations = () => {
     <>
       <PageHeader
         title="Organizations"
-        description={DESCRIPTION}
+        description={
+          resource.status === "ready" ? summary(resource.data) : DESCRIPTION
+        }
         actions={
           <button
             type="button"
@@ -127,15 +148,13 @@ const Organizations = () => {
             resource.status === "ready"
               ? {
                   status: "ready",
-                  // Only the ones you can manage: a member can't open the rest.
-                  data: resource.data.filter((o) => canManage(o.role)),
+                  // The ones you can open come first.
+                  data: [
+                    ...resource.data.filter((o) => canManage(o.role)),
+                    ...resource.data.filter((o) => !canManage(o.role)),
+                  ],
                 }
               : resource
-          }
-          memberOf={
-            resource.status === "ready"
-              ? resource.data.filter((o) => !canManage(o.role))
-              : []
           }
         />
       )}
@@ -152,25 +171,15 @@ type TableState =
   { status: "loading" } | { status: "ready"; data: Organization[] };
 
 /**
- * The table, and the notes beside it once the content column is wide enough
+ * The table, and the note beside it once the content column is wide enough
  * (a container query: the sidebar takes 256px of the viewport from `lg` up).
  */
-const OrganizationsLayout = ({
-  state,
-  memberOf,
-}: {
-  state: TableState;
-  /** Organizations where the user is a plain member: named, not listed. */
-  memberOf: Organization[];
-}) => (
+const OrganizationsLayout = ({ state }: { state: TableState }) => (
   <Container className="pt-8 pb-12 sm:pt-10">
     <div className="@container">
       <div className="grid items-start gap-x-12 gap-y-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)]">
         <OrganizationsTable state={state} />
-        <aside
-          aria-label="About roles"
-          className="flex min-w-0 flex-col gap-10"
-        >
+        <aside aria-label="About roles" className="min-w-0">
           <SideNote title="What each role can do">
             <dl className="mt-2 divide-y divide-brand-ink/10">
               {ORGANIZATION_ROLES.map((role) => (
@@ -185,43 +194,106 @@ const OrganizationsLayout = ({
               ))}
             </dl>
           </SideNote>
-
-          {memberOf.length > 0 && (
-            <SideNote title="Where you are a member">
-              <ul className="mt-2 divide-y divide-brand-ink/10">
-                {memberOf.map((organization) => (
-                  <li
-                    key={organization.id}
-                    className="truncate py-2.5 text-sm font-medium"
-                  >
-                    {organization.name}
-                  </li>
-                ))}
-              </ul>
-              <p className={clsx("mt-1 text-xs", mutedText)}>
-                Not in the table: owners and admins manage these. Ask one of
-                them if you need access.
-              </p>
-            </SideNote>
-          )}
         </aside>
       </div>
     </div>
   </Container>
 );
 
-const COLUMNS = ["", "", "hidden sm:table-cell", ""];
+/** Who is in each organization: a list, "error", or absent while loading. */
+type People = Record<string, OrganizationMember[] | "error">;
 
-/** The organizations you manage. Empty and loading keep the same columns. */
+/** Beyond this many rows the table stops asking who is in each one. */
+const PEOPLE_ROWS = 12;
+
+/**
+ * The members of each organization the user manages, one request per row.
+ * A row that fails shows "—": the count is a convenience, not the page.
+ */
+const usePeople = (organizationIds: string[]) => {
+  const key = organizationIds.slice(0, PEOPLE_ROWS).join(",");
+  const [people, setPeople] = useState<People>({});
+
+  useEffect(() => {
+    if (!key) return;
+    const controller = new AbortController();
+    for (const id of key.split(",")) {
+      organizationsApi
+        .members(id, controller.signal)
+        .then((members) => setPeople((all) => ({ ...all, [id]: members })))
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setPeople((all) => ({ ...all, [id]: "error" }));
+          }
+        });
+    }
+    return () => controller.abort();
+  }, [key]);
+
+  return people;
+};
+
+const FACES = 3;
+
+/** Up to three faces, overlapped, and the head count. */
+const PeopleCell = ({ members }: { members: People[string] | undefined }) => {
+  if (members === undefined) return <Skeleton className="h-4 w-16" />;
+  if (members === "error") {
+    return (
+      <span className={mutedText}>
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">Unknown</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className="flex -space-x-1">
+        {members.slice(0, FACES).map((member, index) => (
+          // Earlier faces sit on top, so their initials stay whole.
+          <span
+            key={member.userId}
+            className="relative flex"
+            style={{ zIndex: FACES - index }}
+          >
+            <Avatar
+              name={member.name || member.email}
+              src={member.avatarUrl}
+              className="h-7 w-7 text-[10px] ring-2 ring-white"
+            />
+          </span>
+        ))}
+      </span>
+      <span className={clsx("whitespace-nowrap tabular-nums", mutedText)}>
+        {members.length.toLocaleString()}
+        <span className="sr-only">
+          {members.length === 1 ? " person" : " people"}
+        </span>
+      </span>
+    </span>
+  );
+};
+
+const COLUMNS = ["", "hidden @2xl:table-cell", "", "hidden sm:table-cell", ""];
+
+/** Your organizations. Empty and loading keep the same columns. */
 const OrganizationsTable = ({ state }: { state: TableState }) => {
+  const organizations = state.status === "ready" ? state.data : [];
+  const people = usePeople(
+    organizations.filter((o) => canManage(o.role)).map((o) => o.id),
+  );
+
   return (
     <Panel className="min-w-0 overflow-hidden">
       <table className={tableLook}>
-        <caption className="sr-only">Organizations you manage</caption>
+        <caption className="sr-only">Your organizations</caption>
         <thead>
           <tr>
-            <th scope="col" className={thLook}>
+            <th scope="col" className={clsx(thLook, "w-full")}>
               Organization
+            </th>
+            <th scope="col" className={clsx(thLook, "hidden @2xl:table-cell")}>
+              People
             </th>
             <th scope="col" className={thLook}>
               Your role
@@ -237,8 +309,8 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
         <tbody aria-busy={state.status === "loading"}>
           {state.status === "loading" && <SkeletonRows columns={COLUMNS} />}
 
-          {state.status === "ready" && state.data.length === 0 && (
-            <EmptyTableRow colSpan={4} title="No organizations yet">
+          {state.status === "ready" && organizations.length === 0 && (
+            <EmptyTableRow colSpan={5} title="No organizations yet">
               Create your first one with{" "}
               <span className="font-medium text-brand-ink">
                 New organization
@@ -247,43 +319,71 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
             </EmptyTableRow>
           )}
 
-          {state.status === "ready" &&
-            state.data.map((organization, index) => (
+          {organizations.map((organization, index) => {
+            const manageable = canManage(organization.role);
+            return (
               <tr
                 key={organization.id}
                 style={{ "--row": index } as React.CSSProperties}
                 className={clsx(
                   "console-row-in",
                   rowLook,
-                  "group relative hover:bg-brand-wash/50",
+                  manageable &&
+                    "group relative hover:bg-brand-wash/50 has-[a:focus-visible]:bg-brand-wash/50",
                 )}
               >
-                <td className={tdLook}>
+                {/* max-w-0 lets the name truncate instead of widening the table. */}
+                <td className={clsx(tdLook, "w-full max-w-0")}>
                   <div className="flex items-center gap-3">
                     <Avatar
                       name={organization.name}
                       src={organization.logoUrl}
                       shape="square"
-                      className="h-9 w-9 text-xs"
+                      className={clsx(
+                        "h-9 w-9 text-xs",
+                        !manageable && "bg-brand-mist text-[#4B5468]",
+                      )}
                     />
                     <div className="min-w-0">
-                      {/* The link covers the whole row. */}
-                      <Link
-                        href={organizationPath(organization.id)}
-                        className="block truncate font-medium after:absolute after:inset-0"
-                      >
-                        {organization.name}
-                      </Link>
-                      <p
-                        className={clsx(
-                          "truncate font-receipt text-xs",
-                          mutedText,
-                        )}
-                      >
-                        {organization.slug}
-                      </p>
+                      {manageable ? (
+                        // The link covers the whole row, and so does its
+                        // focus ring.
+                        <Link
+                          href={organizationPath(organization.id)}
+                          className="block truncate font-medium after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand-teal"
+                        >
+                          {organization.name}
+                        </Link>
+                      ) : (
+                        <p className="truncate font-medium">
+                          {organization.name}
+                        </p>
+                      )}
+                      {manageable ? (
+                        <p
+                          translate="no"
+                          className={clsx(
+                            "truncate font-receipt text-xs",
+                            mutedText,
+                          )}
+                        >
+                          {organization.slug}
+                        </p>
+                      ) : (
+                        <p className={clsx("text-xs", mutedText)}>
+                          Managed by its owners and admins
+                        </p>
+                      )}
                     </div>
                   </div>
+                </td>
+                <td className={clsx(tdLook, "hidden @2xl:table-cell")}>
+                  {manageable &&
+                    (index < PEOPLE_ROWS ? (
+                      <PeopleCell members={people[organization.id]} />
+                    ) : (
+                      <PeopleCell members="error" />
+                    ))}
                 </td>
                 <td className={tdLook}>
                   <RoleBadge role={organization.role} />
@@ -298,13 +398,16 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
                   {formatDate(organization.createdAt)}
                 </td>
                 <td className={clsx(tdLook, "w-10")}>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="h-4 w-4 text-[#8B93A8] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary-700"
-                  />
+                  {manageable && (
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="h-4 w-4 text-[#8B93A8] transition-[translate,color] duration-150 group-hover:translate-x-[3px] group-hover:text-primary-700 motion-reduce:transition-none"
+                    />
+                  )}
                 </td>
               </tr>
-            ))}
+            );
+          })}
         </tbody>
       </table>
     </Panel>
@@ -321,6 +424,7 @@ const CreateOrganizationModal = ({
   onClose: () => void;
 }) => {
   const router = useRouter();
+  const { refresh: refreshAccess } = useOrganizationAccess();
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
   const [name, setName] = useState("");
@@ -362,6 +466,8 @@ const CreateOrganizationModal = ({
         name: trimmedName,
         slug: trimmedSlug || null,
       });
+      // A first organization can open the Organizations area in the sidebar.
+      await refreshAccess();
       addToastMessage("success", `${trimmedName} was created.`);
       setSaving(false);
       setName("");

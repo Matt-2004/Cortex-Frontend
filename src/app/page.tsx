@@ -6,12 +6,12 @@ import { SiteFooter } from "./features/landing/ui/SiteFooter";
 import { SiteHeader } from "./features/landing/ui/SiteHeader";
 import {
   CitedAnswers,
-  Faq,
   GetStarted,
   HowItWorks,
   Recommendations,
   WhyCortex,
-} from "./features/landing/ui/sections";
+} from "./features/landing/ui/demos";
+import { Faq } from "./features/landing/ui/sections";
 
 export const metadata: Metadata = {
   title: "Cortex · AI assistant for your website",
@@ -20,7 +20,8 @@ export const metadata: Metadata = {
 };
 
 /* The sections below share one layout (see <Section> in landing/ui/primitives):
-   text on the left, one supporting visual on the right. Backgrounds alternate
+   text on the left, one supporting visual on the right. The visuals are demos
+   that play when they scroll into view (landing/ui/demos.tsx). Backgrounds alternate
    between white and the teal wash, with one deep-teal band for the closing
    call to action. Navy is never used as a background.
    The FAQ is the exception to the layout: full width, no frame. */

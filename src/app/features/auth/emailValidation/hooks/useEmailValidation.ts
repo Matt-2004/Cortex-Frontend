@@ -26,8 +26,13 @@ export const useEmailValidation = (
   const { handleToast, addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
 
-  const { formData, setFormData, validationErrors, isFormValid, setServerErrors } =
-    useAuthForm({ email: initialEmail }, sendEmailSchema);
+  const {
+    formData,
+    setFormData,
+    validationErrors,
+    isFormValid,
+    setServerErrors,
+  } = useAuthForm({ email: initialEmail }, sendEmailSchema);
 
   /** POST /api/auth/resend-verification — 204 | 400 | 404 | 409 */
   const resendVerification = async (email: string) => {

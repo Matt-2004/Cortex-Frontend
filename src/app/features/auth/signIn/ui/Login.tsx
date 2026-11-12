@@ -143,7 +143,9 @@ const Login = () => {
 
         <AuthFooterText>
           Don&apos;t have an account?{" "}
-          <AuthLink href="/auth/register" direction="forward">Create an account</AuthLink>
+          <AuthLink href="/auth/register" direction="forward">
+            Create an account
+          </AuthLink>
         </AuthFooterText>
       </div>
     </AuthSplitLayout>

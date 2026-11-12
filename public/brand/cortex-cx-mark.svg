@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Cortex CX mark">
+  <path d="M156.57 43.43 A80 80 0 1 0 156.57 156.57" stroke="#12172A" stroke-width="20"/>
+  <path d="M63.23 63.23 L136.77 136.77 M63.23 136.77 L136.77 63.23" stroke="#12172A" stroke-width="16"/>
+  <circle cx="100" cy="100" r="9" fill="#00AB8F" stroke="none"/>
+</svg>

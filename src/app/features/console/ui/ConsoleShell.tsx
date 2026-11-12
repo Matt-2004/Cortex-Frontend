@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
   Suspense,
   type ReactNode,
 } from "react";
@@ -44,20 +45,58 @@ const ConsoleUserContext = createContext<User | null>(null);
  * - "manager": owner or admin somewhere → sees Organizations.
  * - "none": in no organization yet → sees it, to create their first.
  * - "member-only": only ever a plain member → it is hidden.
- * - "unknown": still loading → hidden until known, so it never flashes.
+ * - "unknown": still loading → the sidebar shows what the last visit found
+ *   (see useShowsOrganizationsTab), so the tab doesn't wait for the backend.
  */
 export type OrganizationAccess = "unknown" | "manager" | "none" | "member-only";
 
 const OrganizationAccessContext = createContext<{
   access: OrganizationAccess;
-  refresh: () => void;
-}>({ access: "unknown", refresh: () => {} });
+  /** Reads the roles again; resolves once the backend has answered. */
+  refresh: () => Promise<void>;
+}>({ access: "unknown", refresh: async () => {} });
 
 export const useOrganizationAccess = () =>
   useContext(OrganizationAccessContext);
 
 export const canSeeOrganizations = (access: OrganizationAccess) =>
   access === "manager" || access === "none";
+
+/* The sidebar doesn't wait for the backend to show the Organizations tab:
+   it starts from the answer of the last visit, kept in this browser. Only a
+   remembered "member-only" hides it; with no memory it shows, since most
+   users may open it and the pages themselves say when they may not. */
+const ACCESS_KEY = "cortex.organizationAccess";
+
+const rememberAccess = (access: OrganizationAccess) => {
+  try {
+    window.localStorage.setItem(ACCESS_KEY, access);
+  } catch {
+    // Storage blocked (private window…): the tab just shows by default.
+  }
+};
+
+const readRememberedAccess = () => {
+  try {
+    return window.localStorage.getItem(ACCESS_KEY);
+  } catch {
+    return null;
+  }
+};
+
+// Nothing to subscribe to: it is read once, before the backend answers.
+const subscribeToNothing = () => () => {};
+
+/** Whether the sidebar lists Organizations, known or not yet. */
+const useShowsOrganizationsTab = () => {
+  const { access } = useOrganizationAccess();
+  const remembered = useSyncExternalStore(
+    subscribeToNothing,
+    readRememberedAccess,
+    () => null,
+  );
+  return (access === "unknown" ? remembered : access) !== "member-only";
+};
 
 /** The signed-in user. Only available inside <SignedIn>. */
 export function useConsoleUser(): User {
@@ -154,7 +193,7 @@ const NavList = ({
   pathname: string;
   onNavigate?: () => void;
 }) => {
-  const { access } = useOrganizationAccess();
+  const showsOrganizations = useShowsOrganizationsTab();
   return (
     <nav aria-label="Console" className="flex flex-col gap-5">
       {NAV.map(({ heading, items }, index) => (
@@ -167,8 +206,7 @@ const NavList = ({
             {items
               .filter(
                 ({ href }) =>
-                  href !== "/console/organizations" ||
-                  canSeeOrganizations(access),
+                  href !== "/console/organizations" || showsOrganizations,
               )
               .map(({ href, label, icon: Icon }) => {
                 const active = isActive(pathname, href);
@@ -224,13 +262,14 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
   const loadAccess = useCallback(async () => {
     try {
       const organizations = await organizationsApi.list();
-      setAccess(
+      const next: OrganizationAccess =
         organizations.length === 0
           ? "none"
           : organizations.some((o) => canManage(o.role))
             ? "manager"
-            : "member-only",
-      );
+            : "member-only";
+      setAccess(next);
+      rememberAccess(next);
     } catch {
       setAccess("manager");
     }
@@ -328,10 +367,8 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <OrganizationAccessContext.Provider
-      value={{ access, refresh: () => void loadAccess() }}
-    >
-      <div className="flex h-dvh flex-col bg-white text-brand-ink lg:flex-row">
+    <OrganizationAccessContext.Provider value={{ access, refresh: loadAccess }}>
+      <div className="console-theme flex h-dvh flex-col bg-white text-brand-ink lg:flex-row">
         <a
           href="#console-main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-primary-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
@@ -457,18 +494,25 @@ export const PageHeader = ({
         <div className="flex min-w-0 items-center gap-4">
           {media}
           <div className="min-w-0">
-            <h1 className="font-display text-[32px] leading-[1.1] tracking-[-0.015em] break-words sm:text-[38px]">
+            <h1 className="font-display text-[32px] leading-[1.1] tracking-[-0.015em] text-balance break-words sm:text-[38px]">
               {title}
             </h1>
             {description && (
-              <div className={clsx("mt-2 max-w-2xl text-[15px]", mutedText)}>
+              <div
+                className={clsx(
+                  "mt-2 max-w-2xl text-[15px] text-pretty",
+                  mutedText,
+                )}
+              >
                 {description}
               </div>
             )}
           </div>
         </div>
         {actions && (
-          <div className="flex shrink-0 items-center gap-3">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {actions}
+          </div>
         )}
       </div>
       {children && <div className="mt-8">{children}</div>}

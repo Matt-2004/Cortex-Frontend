@@ -10,13 +10,14 @@ export const Hero = () => (
     pattern="dots"
     id="top"
     label="For stores and business websites"
-    title={
+    title="An AI assistant for your website"
+    lead={
       <>
-        An AI assistant for your website that answers from{" "}
-        <Mark motion="load">your own documents</Mark>.
+        It answers visitors’ questions about shipping, returns and policies from{" "}
+        <Mark motion="load">your own documents</Mark>, shows the source of every
+        answer, and recommends products from your catalog.
       </>
     }
-    lead="It answers visitors’ questions about shipping, returns and policies, shows the source of every answer, and recommends products from your catalog."
     figure={<HeroChatDemo />}
   >
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -30,5 +31,9 @@ export const Hero = () => (
         See how it works
       </a>
     </div>
+    {/* The first screen's hard fact; the steps are the section linked above. */}
+    <p className="mt-6 font-receipt text-xs text-[#4B5468]">
+      Set up in 3 steps · Live with 1 line of code
+    </p>
   </Section>
 );

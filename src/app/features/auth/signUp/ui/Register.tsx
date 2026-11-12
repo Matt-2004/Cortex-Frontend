@@ -236,7 +236,9 @@ const Register = () => {
 
         <AuthFooterText>
           Already have an account?{" "}
-          <AuthLink href="/auth/login" direction="back">Sign in</AuthLink>
+          <AuthLink href="/auth/login" direction="back">
+            Sign in
+          </AuthLink>
         </AuthFooterText>
       </form>
     </AuthSplitLayout>

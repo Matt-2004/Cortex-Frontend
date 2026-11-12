@@ -10,7 +10,7 @@ import type { LoginRequest } from "../../types/auth-api.types";
 
 // formData --> handleFormSubmit() --> authApi.login (sets session cookies) --> redirect
 
-export const PATH_AFTER_SIGN_IN = "/dashboard";
+export const PATH_AFTER_SIGN_IN = "/console";
 
 const initialLoginFormData: LoginRequest = {
   email: "",
@@ -28,15 +28,22 @@ export const useSignIn = () => {
   // Set when login returns 403 (email not verified): shows the resend action.
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   // The backend's 403 message, shown as-is in the banner.
-  const [unverifiedMessage, setUnverifiedMessage] = useState<string | null>(null);
+  const [unverifiedMessage, setUnverifiedMessage] = useState<string | null>(
+    null,
+  );
   const [isResending, setIsResending] = useState(false);
 
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
 
   // Login only checks that fields are filled in — never password rules.
-  const { formData, setFormData, validationErrors, isFormValid, setServerErrors } =
-    useAuthForm(initialLoginFormData, LoginSchema);
+  const {
+    formData,
+    setFormData,
+    validationErrors,
+    isFormValid,
+    setServerErrors,
+  } = useAuthForm(initialLoginFormData, LoginSchema);
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

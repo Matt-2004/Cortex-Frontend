@@ -4,7 +4,12 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import { Info, Loader2, Search, X } from "lucide-react";
 import { primaryButtonLook } from "@/app/features/landing/ui/primitives";
-import { roleLabel, type OrganizationRole } from "@/app/features/organizations/types/organization.types";
+import {
+  ADMIN,
+  OWNER,
+  roleLabel,
+  type OrganizationRole,
+} from "@/app/features/organizations/types/organization.types";
 
 /* ────────────────────────────────────────────────────────────
  * Building blocks for the console (/console).
@@ -15,7 +20,9 @@ import { roleLabel, type OrganizationRole } from "@/app/features/organizations/t
 
 export const mutedText = "text-[#4B5468]";
 
-const disabledLook = "disabled:pointer-events-none disabled:opacity-60";
+// Every console button sinks 1px while pressed, so a click is felt.
+const disabledLook =
+  "active:translate-y-px motion-reduce:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60";
 
 export const buttonPrimary = `${primaryButtonLook} h-10 gap-2 px-4 text-sm ${disabledLook}`;
 
@@ -136,9 +143,11 @@ export const RoleBadge = ({ role }: { role: OrganizationRole }) => (
   <span
     className={clsx(
       "inline-flex h-6 items-center rounded-[4px] px-2 text-xs font-medium whitespace-nowrap",
-      role === 0 && "bg-primary-700 text-white",
-      role === 1 && "bg-primary-100 text-primary-800",
-      role !== 0 && role !== 1 && "border border-brand-ink/20 text-[#4B5468]",
+      role === OWNER && "bg-primary-700 text-white",
+      role === ADMIN && "bg-primary-100 text-primary-800",
+      role !== OWNER &&
+        role !== ADMIN &&
+        "border border-brand-ink/20 text-[#4B5468]",
     )}
   >
     {roleLabel(role)}
@@ -258,6 +267,45 @@ export const Panel = ({
   </div>
 );
 
+/**
+ * An unboxed side note: one heavy rule, a serif title, then plain rows. It
+ * sits beside a Panel so a screen is not a grid of equal-weight cards — the
+ * Panel carries the main list, the note carries what supports it.
+ */
+export const SideNote = ({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  /** Shown opposite the title: a count or a link. */
+  meta?: ReactNode;
+  children: ReactNode;
+}) => {
+  const titleId = useId();
+  return (
+    <section
+      aria-labelledby={titleId}
+      className="border-t-2 border-brand-ink pt-3"
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <h2
+          id={titleId}
+          className="font-display text-[22px] leading-tight tracking-[-0.01em]"
+        >
+          {title}
+        </h2>
+        {meta}
+      </div>
+      {children}
+    </section>
+  );
+};
+
+/** Text link used inside panels and side notes. */
+export const textLink =
+  "font-medium text-primary-700 underline decoration-primary-700/30 underline-offset-4 transition-colors duration-150 hover:decoration-primary-700";
+
 export const Skeleton = ({ className }: { className?: string }) => (
   <span
     aria-hidden="true"
@@ -351,7 +399,7 @@ export const Modal = ({
         // A click on the backdrop lands on the <dialog> element itself.
         if (event.target === ref.current) onClose();
       }}
-      className="m-auto w-[min(100%-2rem,480px)] rounded-xl border border-brand-ink/10 bg-white p-0 text-brand-ink shadow-[0_24px_48px_-24px_rgba(18,23,42,0.45)] backdrop:bg-black/35"
+      className="m-auto w-[min(100%-2rem,480px)] rounded-xl border border-brand-ink/10 bg-white p-0 text-brand-ink shadow-[0_24px_48px_-24px_rgba(18,23,42,0.45)] overscroll-contain backdrop:bg-black/35"
     >
       {open && (
         <div className="p-6 sm:p-7">

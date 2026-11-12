@@ -6,22 +6,22 @@
 // ─── Roles ───────────────────────────────────────────────────────────
 
 /**
- * The API sends a role as an integer: 0 = Owner, 1 = Admin, 2 = Member.
+ * The API sends a role as an integer: 1 = Owner, 2 = Admin, 3 = Member.
  * This list is the only place the mapping lives.
  */
 export const ORGANIZATION_ROLES = [
   {
-    value: 0,
+    value: 1,
     label: "Owner",
     description: "Full control, including members and settings.",
   },
   {
-    value: 1,
+    value: 2,
     label: "Admin",
     description: "Manages members and settings.",
   },
   {
-    value: 2,
+    value: 3,
     label: "Member",
     description: "Works in the organization. Cannot manage it.",
   },
@@ -55,9 +55,9 @@ export function toRole(value: unknown): OrganizationRole {
   return -1; // Unknown: shown as "Role ?" and treated as no permission.
 }
 
-export const OWNER: OrganizationRole = 0;
-export const ADMIN: OrganizationRole = 1;
-export const MEMBER: OrganizationRole = 2;
+export const OWNER: OrganizationRole = ORGANIZATION_ROLES[0].value;
+export const ADMIN: OrganizationRole = ORGANIZATION_ROLES[1].value;
+export const MEMBER: OrganizationRole = ORGANIZATION_ROLES[2].value;
 
 /**
  * Who may do what. The backend is the authority (it answers 403); these
@@ -86,7 +86,7 @@ export const assignableRoles = (actor: OrganizationRole) =>
 export function roleLabel(role: OrganizationRole): string {
   return (
     ORGANIZATION_ROLES.find((entry) => entry.value === role)?.label ??
-    (role < 0 ? "Unknown role" : `Role ${role}`)
+    (role <= 0 ? "Unknown role" : `Role ${role}`)
   );
 }
 

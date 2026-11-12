@@ -23,7 +23,7 @@ const withRoles = <T extends { role: unknown }>(items: T[]): T[] =>
  * session is refreshed once and the call retried. Every method throws
  * `ApiError` on failure; pass it to useApiErrorHandler.
  *
- * Status codes: create 201, add member 201, remove member 204; 403 when the
+ * Status codes: create 201, add member 201, remove member 204, delete 204; 403 when the
  * user's role does not allow the change, 404 / 409 as the API documents.
  */
 
@@ -62,6 +62,10 @@ export const organizationsApi = {
       body,
       auth: true,
     }),
+
+  /** Owners only. Removes the organization and every membership in it. */
+  remove: (organizationId: string) =>
+    apiRequest<void>(one(organizationId), { method: "DELETE", auth: true }),
 
   members: async (organizationId: string, signal?: AbortSignal) =>
     withRoles(
