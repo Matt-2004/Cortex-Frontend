@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { clsx } from "clsx";
+import { Reveal } from "./Reveal";
 
 /* ────────────────────────────────────────────────────────────
  * Shared building blocks for the marketing page (/).
@@ -11,8 +12,8 @@ import { clsx } from "clsx";
  * layout. Each section picks a background tone, and optionally a quiet pattern
  * that relates to what it shows.
  *
- * Colour: white and the teal wash for sections, one deep-teal band for the
- * closing call to action, and teal as the one action colour. Navy is for text,
+ * Colour: white and the neutral wash for sections, one deep-teal band for the
+ * closing call to action, and teal (the logo's dot) as the one action colour. Navy is for text,
  * never a background. Spacing: sections share sectionShell; visuals sit in a
  * frame that hugs its content with even padding. The one exception to the layout is the FAQ,
  * which runs the full width with no frame (it reuses sectionShell and sectionTitle).
@@ -106,15 +107,17 @@ export const Label = ({
   </p>
 );
 
+/** A button answers the pointer: it steps up 1px on hover and sinks on press. */
+const buttonMotion =
+  "transition-[background-color,translate] duration-150 hover:-translate-y-px active:translate-y-px active:duration-75 motion-reduce:translate-y-0";
+
 /** The one action colour: teal with navy text, on every background. */
-export const primaryButtonLook =
-  "inline-flex items-center justify-center rounded-md bg-brand-teal font-semibold text-brand-ink transition-colors duration-150 hover:bg-primary-400 active:bg-primary-500";
+export const primaryButtonLook = `inline-flex items-center justify-center rounded-md bg-brand-teal font-semibold text-brand-ink hover:bg-primary-400 active:bg-primary-500 ${buttonMotion}`;
 
 export const primaryButton = `${primaryButtonLook} h-12 px-6 text-[15px]`;
 
 /** For the deep-teal band, where the teal button would disappear. */
-export const lightButton =
-  "inline-flex h-12 items-center justify-center rounded-md bg-white px-6 text-[15px] font-semibold text-brand-ink transition-colors duration-150 hover:bg-primary-50";
+export const lightButton = `inline-flex h-12 items-center justify-center rounded-md bg-white px-6 text-[15px] font-semibold text-brand-ink hover:bg-primary-50 ${buttonMotion}`;
 
 export const textLink =
   "font-medium underline decoration-current/30 decoration-1 underline-offset-4 transition-[text-decoration-color] duration-150 hover:decoration-brand-teal";
@@ -122,7 +125,7 @@ export const textLink =
 /** The frame every supporting visual sits in. It hugs its content with even
     padding; its colour comes from the section's tone so it stands off the background. */
 export const figureFrame =
-  "flex items-center justify-center rounded-xl bg-[var(--frame-bg,#E4F5F1)] p-5 sm:p-8 lg:p-10";
+  "flex items-center justify-center rounded-xl bg-[var(--frame-bg,var(--brand-wash))] p-5 sm:p-8 lg:p-10";
 
 /** A white card inside a figure frame. */
 export const figureCard =
@@ -240,7 +243,7 @@ export const sectionTitle =
 export type SectionTone = "white" | "wash" | "teal";
 
 /** Background of the section, and the frame colour that reads against it:
-    a wash frame on white, a white frame on the wash, a darker teal frame on teal. */
+    a grey frame on white, a white frame on the grey wash, a darker teal frame on teal. */
 const TONES: Record<SectionTone, { section: string; frameBg: string }> = {
   white: { section: "bg-white", frameBg: "var(--brand-wash)" },
   wash: { section: "bg-brand-wash", frameBg: "#FFFFFF" },
@@ -291,6 +294,8 @@ export const Section = ({
   const Heading = hero ? "h1" : "h2";
   const dark = tone === "teal";
   const { section, frameBg } = TONES[tone];
+  const TextColumn = hero ? "div" : Reveal;
+  const FigureColumn = hero ? "div" : Reveal;
   return (
     <section
       id={id}
@@ -299,6 +304,9 @@ export const Section = ({
         sectionShell,
         section,
         "relative isolate overflow-hidden",
+        // On a laptop each section gets the screen under the header to
+        // itself, capped so a tall monitor doesn't leave it adrift.
+        "lg:flex lg:min-h-[min(calc(100svh-4rem),780px)] lg:items-center",
       )}
       style={{ "--frame-bg": frameBg } as CSSProperties}
     >
@@ -312,7 +320,11 @@ export const Section = ({
         />
       )}
       <Container className="grid items-center gap-12 lg:grid-cols-12 lg:gap-x-8">
-        <div className={clsx("lg:col-span-5", hero && "landing-rise")}>
+        {/* The hero rises on load; every other section's text rises, line
+            by line, when it scrolls into view. */}
+        <TextColumn
+          className={clsx("min-w-0 lg:col-span-5", hero && "landing-rise")}
+        >
           <Label className={dark ? "text-primary-100" : "text-primary-700"}>
             {label}
           </Label>
@@ -322,7 +334,7 @@ export const Section = ({
               sectionTitle,
               dark ? "text-white" : "text-brand-ink",
               hero
-                ? "text-[2.75rem] sm:text-5xl xl:text-[3.5rem]"
+                ? "text-[2.75rem] sm:text-6xl xl:text-[4rem]"
                 : "text-4xl sm:text-5xl",
             )}
           >
@@ -339,11 +351,11 @@ export const Section = ({
             </p>
           )}
           {children && <div className="mt-8">{children}</div>}
-        </div>
+        </TextColumn>
         {/* Capped on tablets so the visual doesn't stretch across the page. */}
-        <div className="w-full max-w-[600px] lg:col-span-6 lg:col-start-7 lg:max-w-none">
-          {figure}
-        </div>
+        <FigureColumn className="w-full max-w-[600px] min-w-0 lg:col-span-6 lg:col-start-7 lg:max-w-none">
+          <div>{figure}</div>
+        </FigureColumn>
       </Container>
     </section>
   );

@@ -66,13 +66,19 @@ const DEMOS: Demo[] = [
 
 const SOURCE_ICONS = { file: FileText, web: Globe, catalog: Package };
 
-/** Widget colours. Each is dark enough for white text on top of it. */
+/**
+ * Widget colours: the brand colours websites and SaaS products use most, in
+ * roughly that order (blue leads by far), so a visitor is likely to find
+ * their own. Not Cortex's palette: the widget wears the store's colour.
+ * Each is dark enough for white text on top of it (4.5:1 or better).
+ */
 const THEMES = [
-  { name: "Teal", accent: "#007362" },
-  { name: "Blue", accent: "#1D5FD1" },
-  { name: "Coral", accent: "#C2410C" },
-  { name: "Rose", accent: "#BE185D" },
-  { name: "Amber", accent: "#9A6700" },
+  { name: "Blue", accent: "#2563EB" },
+  { name: "Black", accent: "#111827" },
+  { name: "Green", accent: "#15803D" },
+  { name: "Violet", accent: "#6D28D9" },
+  { name: "Red", accent: "#DC2626" },
+  { name: "Orange", accent: "#C2410C" },
 ];
 
 /** How long each colour stays while the colour changes on its own. */
@@ -96,7 +102,15 @@ const StoreLogo = ({ className }: { className?: string }) => (
 );
 
 type Phase = "typing" | "thinking" | "streaming" | "done";
-type State = { index: number; phase: Phase; count: number };
+type State = {
+  index: number;
+  phase: Phase;
+  count: number;
+  /** Goes up each time a conversation starts, so its button's fill restarts. */
+  run: number;
+  /** Shown complete at once (picked while paused): nothing left to time. */
+  whole: boolean;
+};
 type Action =
   { type: "advance" } | { type: "select"; index: number; instant: boolean };
 
@@ -124,6 +138,8 @@ function reducer(state: State, action: Action): State {
       index: action.index,
       phase: action.instant ? "done" : "typing",
       count: 0,
+      run: state.run + 1,
+      whole: action.instant,
     };
   }
   const demo = DEMOS[state.index];
@@ -143,6 +159,8 @@ function reducer(state: State, action: Action): State {
         index: (state.index + 1) % DEMOS.length,
         phase: "typing",
         count: 0,
+        run: state.run + 1,
+        whole: false,
       };
   }
 }
@@ -162,6 +180,26 @@ function delayFor(state: State): number {
       return 5200;
   }
 }
+
+/**
+ * How long one conversation plays, from its first frame to the switch to the
+ * next one: the sum of every `delayFor` on the way. Its button fills over
+ * exactly this time, so the fill tells how long is left.
+ */
+const totalMs = (index: number) => {
+  const demo = DEMOS[index];
+  const frame = { index, run: 0, whole: false };
+  let total = 0;
+  for (let count = 0; count <= demo.question.length; count++)
+    total += delayFor({ ...frame, phase: "typing", count });
+  for (let count = 0; count <= wordsOf(demo).length; count++)
+    total += delayFor({ ...frame, phase: "streaming", count });
+  return (
+    total +
+    delayFor({ ...frame, phase: "thinking", count: 0 }) +
+    delayFor({ ...frame, phase: "done", count: 0 })
+  );
+};
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const subscribeReducedMotion = (onChange: () => void) => {
@@ -216,6 +254,8 @@ export const HeroChatDemo = () => {
     index: 0,
     phase: "typing",
     count: 0,
+    run: 0,
+    whole: false,
   });
 
   useEffect(() => {
@@ -476,28 +516,54 @@ export const HeroChatDemo = () => {
           aria-label="Example conversations"
           className="flex flex-wrap gap-2"
         >
-          {DEMOS.map((item, index) => (
-            <button
-              key={item.tab}
-              type="button"
-              aria-pressed={index === view.index}
-              onClick={() =>
-                dispatch({
-                  type: "select",
-                  index,
-                  instant: paused || reducedMotion,
-                })
-              }
-              className={clsx(
-                "inline-flex h-8 items-center rounded-md border px-3 font-medium transition-colors duration-150",
-                index === view.index
-                  ? "border-primary-700 bg-primary-700 text-white"
-                  : "border-brand-ink/15 bg-white text-[#4B5468] hover:border-brand-ink/40 hover:text-brand-ink",
-              )}
-            >
-              {item.tab}
-            </button>
-          ))}
+          {DEMOS.map((item, index) => {
+            const current = index === view.index;
+            const timed = !reducedMotion && !view.whole;
+            return (
+              <button
+                key={item.tab}
+                type="button"
+                aria-pressed={current}
+                onClick={() =>
+                  dispatch({
+                    type: "select",
+                    index,
+                    instant: paused || reducedMotion,
+                  })
+                }
+                className={clsx(
+                  "relative inline-flex h-8 items-center rounded-md border px-3 font-medium transition-colors duration-150",
+                  current
+                    ? "border-primary-700 bg-white text-brand-ink"
+                    : "border-brand-ink/15 bg-white text-[#4B5468] hover:border-brand-ink/40 hover:text-brand-ink",
+                )}
+              >
+                {item.tab}
+                {/* The same label in the filled colours, uncovered from the
+                    left for as long as this conversation plays. */}
+                {current && (
+                  <span
+                    key={view.run}
+                    aria-hidden="true"
+                    className={clsx(
+                      "absolute -inset-px flex items-center rounded-[inherit] bg-primary-700 px-[calc(0.75rem+1px)] text-white",
+                      timed && "demo-fill",
+                    )}
+                    style={
+                      timed
+                        ? ({
+                            "--fill-ms": `${totalMs(index)}ms`,
+                            animationPlayState: paused ? "paused" : "running",
+                          } as CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {item.tab}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {!reducedMotion && (

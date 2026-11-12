@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { MobileMenu } from "./MobileMenu";
+import { SectionNav } from "./SectionNav";
 import { Brand, Container, primaryButtonLook, textLink } from "./primitives";
 
 /** Same order as the sections on the page. */
-const LINKS = [
+const LINKS: { href: `#${string}`; label: string }[] = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#pricing", label: "Pricing" },
@@ -16,20 +17,7 @@ export const SiteHeader = () => (
     <Container className="flex h-16 items-center justify-between gap-4">
       <Brand />
       <div className="flex items-center gap-3 text-sm text-brand-ink md:gap-6">
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-6">
-            {LINKS.map(({ href, label }) => (
-              <li key={href}>
-                <a
-                  href={href}
-                  className="text-[#4B5468] transition-colors hover:text-brand-ink"
-                >
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SectionNav links={LINKS} />
         <Link href="/auth/login" className={`${textLink} hidden md:inline`}>
           Sign in
         </Link>

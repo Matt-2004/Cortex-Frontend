@@ -7,8 +7,9 @@
   --brand-ink-input: #20273f;
   --brand-mist: #f4f6f8;
   --brand-teal: #00ab8f;
-  /* Soft teal wash: the light coloured background (landing bands, auth pages). */
-  --brand-wash: #e4f5f1;
+  /* The light band behind sections and headers. Neutral: the logo dot's teal
+     (--brand-teal) is the only colour, kept for actions and highlights. */
+  --brand-wash: #f3f4f6;
   /* Editor's red pen: used only for corrections on the landing page. */
   --brand-pen: #c8401c;
 
@@ -103,8 +104,21 @@ nextjs-portal {
   select:focus-visible,
   textarea:focus-visible,
   [tabindex]:focus-visible {
-    outline: 2px solid var(--brand-teal);
+    /* The deep step of the teal: the logo teal alone is under 3:1 on white. */
+    outline: 2px solid var(--main-color-700);
     outline-offset: 2px;
+  }
+}
+
+/* No 300ms double-tap-zoom wait on controls. */
+@layer base {
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
   }
 }
 
@@ -256,6 +270,20 @@ nextjs-portal {
 
 /* ─── Console (/console) ─────────────────────────────────────── */
 
+/* ─── Console theme ──────────────────────────────────────────────
+   Neutral surfaces and ink text; the teal of the logo's centre dot is the
+   only colour, kept for what acts or reports: the primary button, links,
+   focus, ticks, the status dot. The tinted steps of the teal scale are
+   re-pointed to cool greys here, so every console screen follows without
+   touching its classes. (The band colour, --brand-wash, is neutral site-wide.) */
+.console-theme {
+  --main-color-50: #f6f7f9;
+  --main-color-100: #e8ebef;
+  --main-color-200: #dde1e7;
+  --main-color-800: var(--brand-ink);
+  --main-color-900: var(--brand-ink);
+}
+
 /* Table rows settle in once, top to bottom (index in --row). Short and
    capped, so long lists don't wait; off for reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
@@ -330,6 +358,307 @@ nextjs-portal {
   }
 }
 
+/* ─── Landing motion ─────────────────────────────────────────────
+   One settle curve for everything that arrives (fast start, long soft
+   landing, no overshoot) and one for things that travel. */
+:root {
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-travel: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Section text and frame: the children rise in one after the other, once,
+   when the block scrolls into view (landing/ui/Reveal.tsx sets data-reveal;
+   until it does, everything is simply visible). */
+.reveal[data-reveal="wait"] > * {
+  opacity: 0;
+}
+.reveal[data-reveal="in"] > * {
+  animation: reveal-in 800ms var(--ease-settle) both;
+}
+.reveal[data-reveal="in"] > :nth-child(2) {
+  animation-delay: 90ms;
+}
+.reveal[data-reveal="in"] > :nth-child(3) {
+  animation-delay: 180ms;
+}
+.reveal[data-reveal="in"] > :nth-child(n + 4) {
+  animation-delay: 270ms;
+}
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    translate: 0 22px;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+
+/* Demo building blocks (landing/ui/demos.tsx). Each part is in the layout
+   from the start and only fades, slides or draws when its step arrives
+   (data-on="true"), so a demo's frame never changes size while it plays.
+   Leaving is quicker than arriving. In the components layer so utilities on
+   the same element still win. */
+@layer components {
+  .demo-step {
+    opacity: 0;
+    translate: 0 12px;
+    scale: 0.97;
+    filter: blur(5px);
+    transition:
+      opacity 200ms ease-out,
+      translate 200ms ease-out,
+      scale 200ms ease-out,
+      filter 200ms ease-out,
+      border-color 400ms ease-out;
+  }
+  .demo-step[data-on="true"] {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: blur(0);
+    transition:
+      opacity 420ms ease-out,
+      translate 640ms var(--ease-settle),
+      scale 640ms var(--ease-settle),
+      filter 420ms ease-out,
+      border-color 400ms ease-out;
+  }
+
+  /* One word of a streamed answer; its delay is set inline. */
+  .demo-word {
+    display: inline-block;
+    white-space: pre;
+    opacity: 0;
+    translate: 0 5px;
+    filter: blur(3px);
+    transition:
+      opacity 160ms ease-out,
+      translate 160ms ease-out,
+      filter 160ms ease-out;
+  }
+  .demo-word[data-on="true"] {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+    transition:
+      opacity 320ms ease-out,
+      translate 420ms var(--ease-settle),
+      filter 320ms ease-out;
+  }
+
+  /* "Writing…": three dots in the answer bubble until the words come. */
+  .demo-typing {
+    opacity: 0;
+    transition: opacity 180ms ease-out;
+  }
+  .demo-typing[data-on="true"] {
+    opacity: 1;
+  }
+  .demo-typing > i {
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.35;
+  }
+  .demo-typing[data-on="true"] > i {
+    animation: demo-typing 1s ease-in-out infinite;
+  }
+  .demo-typing > i:nth-child(2) {
+    animation-delay: 140ms;
+  }
+  .demo-typing > i:nth-child(3) {
+    animation-delay: 280ms;
+  }
+
+  /* Two labels in one spot ("indexing…" → "indexed"): they cross-fade. */
+  .demo-swap {
+    display: inline-grid;
+  }
+  .demo-swap > * {
+    grid-area: 1 / 1;
+    justify-self: end;
+    transition:
+      opacity 300ms ease-out,
+      translate 420ms var(--ease-settle);
+  }
+  .demo-swap > :first-child,
+  .demo-swap[data-on="true"] > :last-child {
+    opacity: 1;
+    translate: 0 0;
+  }
+  .demo-swap > :last-child {
+    opacity: 0;
+    translate: 0 6px;
+  }
+  .demo-swap[data-on="true"] > :first-child {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+
+  /* The highlighter, drawn left to right. */
+  .demo-mark {
+    background-size: 0% 76%;
+    transition: background-size 200ms ease-out;
+  }
+  .demo-mark[data-on="true"] {
+    background-size: 100% 76%;
+    transition: background-size 550ms var(--ease-travel);
+  }
+
+  /* The red pen, drawn through a wrong claim. */
+  .demo-strike {
+    position: relative;
+  }
+  .demo-strike::after {
+    content: "";
+    position: absolute;
+    inset-inline: -2px;
+    top: 54%;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--brand-pen);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 200ms ease-out;
+  }
+  .demo-strike[data-on="true"]::after {
+    transform: scaleX(1);
+    transition: transform 520ms var(--ease-travel);
+  }
+
+  /* A verdict stamped on: it comes down from large and settles askew. */
+  .demo-stamp {
+    display: inline-block;
+    opacity: 0;
+    scale: 1.5;
+    rotate: -10deg;
+    transition:
+      opacity 180ms ease-out,
+      scale 180ms ease-out,
+      rotate 180ms ease-out;
+  }
+  .demo-stamp[data-on="true"] {
+    opacity: 1;
+    scale: 1;
+    rotate: -3deg;
+    transition:
+      opacity 160ms ease-out,
+      scale 520ms var(--ease-settle),
+      rotate 520ms var(--ease-settle);
+  }
+
+  /* The pointer that clicks things. It sits on its target and glides in
+     from the lower right; data-press pushes it down, with a ring. */
+  .demo-cursor {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 5;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    opacity: 0;
+    translate: 46px 34px;
+    transition:
+      opacity 200ms ease-out,
+      translate 200ms ease-out;
+  }
+  .demo-cursor[data-on="true"] {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity 200ms ease-out,
+      translate 450ms var(--ease-travel);
+  }
+  .demo-cursor > svg {
+    display: block;
+    transition: scale 140ms ease-out;
+    transform-origin: 2px 2px;
+  }
+  .demo-cursor[data-press="true"] > svg {
+    scale: 0.82;
+  }
+  .demo-cursor::before {
+    content: "";
+    position: absolute;
+    top: -9px;
+    left: -9px;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    border: 1.5px solid var(--main-color-700);
+    opacity: 0;
+    scale: 0.4;
+  }
+  .demo-cursor[data-press="true"]::before {
+    animation: demo-ring 520ms ease-out both;
+  }
+
+  /* A file being read. */
+  .demo-progress {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .demo-progress[data-on="true"] {
+    transform: scaleX(1);
+    transition:
+      transform 1000ms var(--ease-travel),
+      opacity 300ms;
+  }
+
+  /* A button filling with colour for as long as its demo plays (--fill-ms).
+     Linear: it is a clock, not something arriving. */
+  .demo-fill {
+    clip-path: inset(0 100% 0 0);
+    animation: demo-fill var(--fill-ms, 12s) linear forwards;
+  }
+
+  /* The line under a demo, filling for as long as the demo plays. */
+  .demo-clock {
+    transform: scaleX(0);
+    animation: demo-clock var(--fill-ms, 5s) linear forwards;
+  }
+
+  /* The line between two setup steps, filling as the first one finishes. */
+  .demo-rail {
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform 200ms ease-out;
+  }
+  .demo-rail[data-on="true"] {
+    transform: scaleY(1);
+    transition: transform 350ms var(--ease-travel);
+  }
+}
+@keyframes demo-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    translate: 0 0;
+  }
+  30% {
+    opacity: 1;
+    translate: 0 -3px;
+  }
+}
+@keyframes demo-ring {
+  from {
+    opacity: 0.9;
+    scale: 0.4;
+  }
+  to {
+    opacity: 0;
+    scale: 1.5;
+  }
+}
+
 /* Red-pen correction. */
 .landing-pen-strike {
   text-decoration: line-through;
@@ -345,7 +674,7 @@ nextjs-portal {
 }
 /* Dot paper */
 .landing-bg-dots {
-  background-image: radial-gradient(rgba(0, 115, 98, 0.26) 1px, transparent 1.6px);
+  background-image: radial-gradient(rgba(18, 23, 42, 0.16) 1px, transparent 1.6px);
   background-size: 20px 20px;
 }
 .landing-bg-dots-light {
@@ -354,13 +683,25 @@ nextjs-portal {
 }
 /* Ruled lines, like a page of a policy document */
 .landing-bg-ruled {
-  background-image: linear-gradient(to bottom, transparent 27px, rgba(0, 115, 98, 0.16) 27px);
+  background-image: linear-gradient(to bottom, transparent 27px, rgba(18, 23, 42, 0.08) 27px);
   background-size: 100% 28px;
 }
 /* Shelf-like grid, for the product catalog */
 .landing-bg-grid {
   background-image:
-    linear-gradient(to right, rgba(0, 115, 98, 0.13) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 115, 98, 0.13) 1px, transparent 1px);
+    linear-gradient(to right, rgba(18, 23, 42, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 23, 42, 0.07) 1px, transparent 1px);
   background-size: 44px 44px;
+}
+
+@keyframes demo-fill {
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes demo-clock {
+  to {
+    transform: scaleX(1);
+  }
 }

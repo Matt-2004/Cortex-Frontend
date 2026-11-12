@@ -77,7 +77,7 @@ Cortex.Api (ASP.NET). OpenAPI: `{CORTEX_BACKEND_URL}/openapi/v1.json`
 - Shapes live in `features/organizations/types/organization.types.ts`
   (`Organization` = `OrganizationDto`, `OrganizationMember` = `MemberDto`).
   There is no "get one member" endpoint: read the list.
-- `OrganizationRole` is an integer: **0 Owner, 1 Admin, 2 Member**.
+- `OrganizationRole` is an integer: **1 Owner, 2 Admin, 3 Member**.
   `toRole()` also accepts names; `organizationsApi` normalises every response.
 
 ## Permissions (console)
@@ -89,7 +89,8 @@ Defined once in `organization.types.ts`; the backend must enforce the same rules
   anyone an owner (`canEditMember`, `assignableRoles`).
 - Member: manages nothing. The Organizations tab is hidden when the user is a
   plain member in every organization (`useOrganizationAccess` in
-  `ConsoleShell.tsx`); organization pages show a no-access state.
+  `ConsoleShell.tsx`). It shows at once, from the last visit's answer kept in
+  `localStorage`, and doesn't wait for the backend; organization pages show a no-access state.
 
 ## Cache Components rules
 
@@ -103,11 +104,14 @@ Defined once in `organization.types.ts`; the backend must enforce the same rules
 ## Design system
 
 Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
-(actions), `brand-wash #e4f5f1`, `brand-mist #f4f6f8`, `primary-50…900`
+(actions; the logo's centre dot), `brand-wash #f3f4f6` (neutral band),
+`brand-mist #f4f6f8`, `primary-50…900`
 (`primary-700 #007362`). Fonts: Inter (body, brand), Newsreader
 (`font-display`, headings), IBM Plex Mono (`font-receipt`, labels/numbers).
 
-- Backgrounds: white and the teal wash only. **Navy is never a background**
+- Colour: neutral surfaces (white and the grey wash) with the logo teal as the
+  only accent, for what acts or highlights. The landing page's closing band
+  (`primary-700`) is the one coloured surface. **Navy is never a background**
   (text only). Auth pages are white.
 - One action colour: teal button with navy text (`primaryButtonLook`).
 - One primary button per action — never two buttons for the same thing.
@@ -122,13 +126,31 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 ### Landing page (`features/landing/ui/`)
 
 - Every section uses the shared `<Section>` (text left, one figure right) with
-  a `tone` (`white` | `wash` | `teal`) and optional `pattern`. FAQ is the only
-  full-width exception. Keep copy to a label, a short heading, ~one sentence.
-- The hero headline names the product category (an AI assistant for your website).
-- Visuals are coded mock-ups; pricing, the widget and its embed snippet are
-  placeholders until the real ones exist.
+  a `tone` (`white` | `wash` | `teal`) and optional `pattern`. FAQ and Pricing are the
+  full-width exceptions (Pricing: three plan columns, the featured one
+  teal-bordered with the only teal button). Keep copy to a label, a short heading, ~one sentence.
+- The hero headline names the product category in 8 words or fewer ("An AI
+  assistant for your website"); the first screen carries one hard fact.
+- From `lg`, each section fills the screen under the header (capped at 780px).
+  The header marks the section being read (`SectionNav`).
+- Motion: section text and frame rise in, staggered, once, on scroll
+  (`Reveal`); curves are `--ease-settle` (arrivals) and `--ease-travel`
+  (things that move), no overshoot.
+- Visuals are demos, not stills (`demos.tsx`, `useTimeline`): each waits empty
+  off screen, plays once when 40% in view, rests on its last frame, and has a
+  Replay button; nothing loops. Every section demo runs 2.5s (its `*_STEPS` add up to 2500) and shows it as a line under the frame that fills over that time, with no seconds label; the hero's conversations are longer and fill their example buttons instead. Motion shows what happens: typing dots then
+  streamed words, a pointer that clicks, labels that cross-fade. Parts stay in the layout and only fade, slide or
+  draw (`.demo-*` in `globals.css`), so frames never resize. Reduced motion
+  and no-JS show the last frame. Pricing, the widget and its embed snippet
+  are placeholders until the real ones exist.
 
 ### Console (`features/console/ui/`, `features/organizations/ui/`)
+
+- Colour: neutral greys and ink, with the logo dot's teal (`#00ab8f`) as the
+  only accent (primary button, links, focus, ticks, status dot). The
+  `.console-theme` scope in `globals.css` re-points the tinted teal steps
+  (`primary-50/100/200/800/900`) to greys inside the console, so keep using
+  those classes; don't hard-code greys.
 
 - `ConsoleShell`: left sidebar (drawer below `lg`), session check, `PageHeader`
   (wash band). Building blocks in `consoleUi.tsx`: `Panel`, `Field`, `Modal`
@@ -137,8 +159,14 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 - A screen is one boxed `Panel` (the main table) plus unboxed `SideNote`s
   beside it for what supports it — not a grid of matching cards. Split the two
   with container queries (`@container`, `@4xl:`): the sidebar eats 256px.
-- Overview: status ledger (rises into the header band), recent documents
-  table, side notes. "Add content" appears once, in the header.
+- Overview: the verdict is the `h1` ("Your assistant is ready to answer"), so
+  it is said once. One sheet rises into the header band: the document count
+  itemised like a receipt, a dashed tear line, then the recent documents
+  table. Side notes start lower, below the band. "Add content" appears once,
+  in the header.
+- Organizations: one table of every organization the user belongs to. Managed
+  ones link and show their people (one members request per row, first 12);
+  member-only ones are listed unlinked.
 - Members: three tables (Owners, Admins, Members), read-only; roles are
   changed on the member page. "Add member" sits above the tables, top right.
 - Organization tabs are deep-linkable (`?tab=settings`).

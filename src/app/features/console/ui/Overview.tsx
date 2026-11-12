@@ -28,7 +28,6 @@ import {
   PageHeader,
   SignedIn,
   canSeeOrganizations,
-  useConsoleUser,
   useOrganizationAccess,
 } from "@/app/features/console/ui/ConsoleShell";
 import {
@@ -52,13 +51,14 @@ import {
  * /console — the console's home.
  *
  * It answers the questions a store owner opens the console with, in the order
- * the eye scans (top-left first): can my assistant answer yet, how much does
- * it know, what should I do next.
+ * the eye scans (top-left first): can my assistant answer yet, what does it
+ * know, what should I do next.
  *
- * Three different shapes, on purpose, instead of a grid of matching cards:
- * the status ledger (a receipt that rises into the header band), the recent
- * documents (the one boxed table) and unboxed side notes for what supports
- * them. "Add content" exists once, in the header.
+ * The verdict is the page's headline, so it is said once. Under it sits one
+ * sheet that rises into the header band: the count of what the assistant
+ * knows, itemised like a receipt, torn off above the latest documents. What
+ * supports it (setup, organizations) stays unboxed beside it and starts lower,
+ * below the band. "Add content" exists once, in the header.
  *
  * The layout follows the width of the content column (container queries), not
  * the viewport: the sidebar takes 256px of it from `lg` up.
@@ -68,58 +68,189 @@ const ORGANIZATIONS_PATH = "/console/organizations";
 const KNOWLEDGE_PATH = "/console/knowledge";
 const CHAT_PATH = "/console/chat";
 
-const DESCRIPTION = "Here is how your website assistant is doing.";
-
 type Sources =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; data: KnowledgeSource[] };
 
-const SOURCE_TYPES: { type: SourceType; label: string; plural: string }[] = [
-  { type: "file", label: "File", plural: "Files" },
-  { type: "url", label: "Web page", plural: "Web pages" },
-  { type: "text", label: "Text", plural: "Pasted text" },
+const SOURCE_TYPES: {
+  type: SourceType;
+  /** Short code shown in the table, like a line on a receipt. */
+  code: string;
+  label: string;
+  plural: string;
+}[] = [
+  { type: "file", code: "File", label: "File", plural: "Files" },
+  { type: "url", code: "Web", label: "Web page", plural: "Web pages" },
+  { type: "text", code: "Text", label: "Pasted text", plural: "Pasted text" },
 ];
 
-const typeLabel = (type: SourceType | null) =>
-  SOURCE_TYPES.find((entry) => entry.type === (type ?? "file"))?.label ??
-  "File";
+const sourceType = (type: SourceType | null) =>
+  SOURCE_TYPES.find((entry) => entry.type === (type ?? "file")) ??
+  SOURCE_TYPES[0];
 
-const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? "";
+/** "acme.example" from a source's URL; null when it has none. */
+const hostOf = (url: string | null) => {
+  if (!url) return null;
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+};
 
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
-const addContent = (
-  <Link href={KNOWLEDGE_PATH} className={buttonPrimary}>
-    <Plus aria-hidden="true" className="h-4 w-4" />
-    Add content
-  </Link>
+// ─── The verdict ─────────────────────────────────────────────────────
+
+type Tone = "loading" | "ok" | "warning" | "error";
+
+const toneOf = (sources: Sources): Tone =>
+  sources.status === "loading"
+    ? "loading"
+    : sources.status === "error"
+      ? "error"
+      : sources.data.length === 0
+        ? "warning"
+        : "ok";
+
+const verdict = (sources: Sources) => {
+  if (sources.status === "error") {
+    return {
+      title: "Your assistant’s status is unavailable",
+      detail: `The knowledge base didn’t answer: ${sources.message} Try again in a moment.`,
+    };
+  }
+  if (sources.status === "ready" && sources.data.length === 0) {
+    return {
+      title: "Your assistant has nothing to answer from",
+      detail:
+        "Add your policies, FAQs or product pages and it can start answering visitors.",
+    };
+  }
+  if (sources.status === "ready") {
+    return {
+      title: "Your assistant is ready to answer",
+      detail: `Visitors get answers from ${plural(sources.data.length, "document")}, each with its source.`,
+    };
+  }
+  return null;
+};
+
+/** The page's one label: what the headline under it is about. */
+const StatusLabel = ({ tone }: { tone: Tone }) => (
+  <p
+    className={clsx(
+      "inline-flex items-center gap-2 font-receipt text-[11px] tracking-[0.12em] uppercase",
+      tone === "ok" && "text-primary-800",
+      tone === "warning" && "text-[#93370D]",
+      tone === "error" && "text-[#B42318]",
+    )}
+  >
+    <span
+      aria-hidden="true"
+      className={clsx(
+        "h-1.5 w-1.5 rounded-full",
+        tone === "loading" && "bg-brand-ink/30",
+        tone === "ok" && "bg-primary-700",
+        tone === "warning" && "bg-[#B54708]",
+        tone === "error" && "bg-[#B42318]",
+      )}
+    />
+    Assistant status
+  </p>
 );
 
-const split =
-  "grid items-start gap-x-12 gap-y-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]";
+const OverviewHeader = ({
+  sources,
+  onRetry,
+}: {
+  sources: Sources;
+  onRetry?: () => void;
+}) => {
+  const tone = toneOf(sources);
+  const text = verdict(sources);
+
+  return (
+    <PageHeader
+      overlap
+      breadcrumb={<StatusLabel tone={tone} />}
+      title={
+        text ? (
+          text.title
+        ) : (
+          <>
+            <span className="sr-only">Overview</span>
+            <Skeleton className="h-9 w-80 max-w-full sm:h-11" />
+          </>
+        )
+      }
+      description={
+        text ? text.detail : <Skeleton className="h-5 w-96 max-w-full" />
+      }
+      actions={
+        <>
+          {tone === "ok" && (
+            <Link href={CHAT_PATH} className={buttonSecondary}>
+              <MessageSquare
+                aria-hidden="true"
+                className="h-4 w-4 text-primary-700"
+              />
+              Test in chat
+            </Link>
+          )}
+          {tone === "error" && onRetry && (
+            <button type="button" onClick={onRetry} className={buttonSecondary}>
+              Try again
+            </button>
+          )}
+          <Link href={KNOWLEDGE_PATH} className={buttonPrimary}>
+            <Plus aria-hidden="true" className="h-4 w-4" />
+            Add content
+          </Link>
+        </>
+      }
+    />
+  );
+};
+
+const split = "@4xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]";
+
+/** The sheet and the side column. The sheet's negative margin lifts it into
+    the header band; the side column keeps the grid's own top edge. */
+const Body = ({
+  sheet,
+  side,
+}: {
+  sheet: React.ReactNode;
+  side?: React.ReactNode;
+}) => (
+  <Container className="pb-12">
+    <div className="@container">
+      <div
+        className={clsx(
+          "grid items-start gap-x-12 gap-y-10 pt-8",
+          side && split,
+        )}
+      >
+        {sheet}
+        {side}
+      </div>
+    </div>
+  </Container>
+);
 
 export const Overview = () => (
   <SignedIn
     fallback={
       // The real blocks in their loading state, so nothing jumps afterwards.
       <>
-        <PageHeader
-          title="Overview"
-          overlap
-          description={DESCRIPTION}
-          actions={addContent}
+        <OverviewHeader sources={{ status: "loading" }} />
+        <Body
+          sheet={<KnowledgeSheet sources={{ status: "loading" }} />}
+          side={<SideNoteSkeleton />}
         />
-        <Container className="pb-12">
-          <div className="@container">
-            <AssistantLedger sources={{ status: "loading" }} />
-            <div className={clsx("mt-10", split)}>
-              <RecentDocuments sources={{ status: "loading" }} />
-              <SideNoteSkeleton />
-            </div>
-          </div>
-        </Container>
       </>
     }
   >
@@ -128,7 +259,6 @@ export const Overview = () => (
 );
 
 const OverviewContent = () => {
-  const user = useConsoleUser();
   const [sources, setSources] = useState<Sources>({ status: "loading" });
 
   const loadSources = useCallback(async () => {
@@ -141,7 +271,7 @@ const OverviewContent = () => {
         message:
           error instanceof AiApiError
             ? error.message
-            : "Couldn't reach the knowledge base.",
+            : "Couldn’t reach the knowledge base.",
       });
     }
   }, []);
@@ -168,7 +298,6 @@ const OverviewContent = () => {
     () => false,
   );
 
-  const greeting = firstName(user.name);
   const { access } = useOrganizationAccess();
 
   const loading =
@@ -185,60 +314,43 @@ const OverviewContent = () => {
   const showOrganizations =
     canSeeOrganizations(access) &&
     !(organizations.status === "ready" && organizations.data.length === 0);
-  // The side column stays while its content is unknown, so the table keeps
+  // The side column stays while its content is unknown, so the sheet keeps
   // its width when the notes arrive. It goes only once we know it is empty.
   const sideEmpty =
     !loading && access !== "unknown" && !setupOpen && !showOrganizations;
 
   return (
     <>
-      <PageHeader
-        title="Overview"
-        overlap
-        description={`${greeting ? `Welcome back, ${greeting}. ` : ""}${DESCRIPTION}`}
-        actions={addContent}
+      <OverviewHeader sources={sources} onRetry={retrySources} />
+      <Body
+        sheet={<KnowledgeSheet sources={sources} />}
+        side={
+          sideEmpty ? undefined : (
+            <aside
+              aria-label="Setup and organizations"
+              className="flex min-w-0 flex-col gap-10"
+            >
+              {loading && <SideNoteSkeleton />}
+              {setupOpen && <SetupNote steps={steps} />}
+              {!loading && showOrganizations && (
+                <OrganizationsNote
+                  organizations={organizations}
+                  onRetry={retryOrganizations}
+                />
+              )}
+            </aside>
+          )
+        }
       />
-
-      <Container className="pb-12">
-        <div className="@container">
-          {/* Status first. The ledger rises into the header band. */}
-          <AssistantLedger sources={sources} onRetry={retrySources} />
-
-          <div className={clsx("mt-10", !sideEmpty && split)}>
-            <RecentDocuments sources={sources} />
-
-            {!sideEmpty && (
-              <aside
-                aria-label="Setup and organizations"
-                className={clsx(
-                  "flex min-w-0 flex-col gap-10",
-                  // Stacked (narrow), unfinished setup comes before the table.
-                  setupOpen && "@max-4xl:order-first",
-                )}
-              >
-                {loading && <SideNoteSkeleton />}
-                {setupOpen && <SetupNote steps={steps} />}
-                {!loading && showOrganizations && (
-                  <OrganizationsNote
-                    organizations={organizations}
-                    onRetry={retryOrganizations}
-                  />
-                )}
-              </aside>
-            )}
-          </div>
-        </div>
-      </Container>
     </>
   );
 };
 
-// ─── Status ledger ───────────────────────────────────────────────────
-// One panel: the verdict on the left, the count behind it on the right,
-// itemised like a receipt. Documents is the number that decides "ready", so
-// it is the one that is big.
+// ─── The knowledge sheet ─────────────────────────────────────────────
+// One panel, two parts: the count of what the assistant knows, itemised like
+// a receipt, and (under a dashed tear line) the documents added last.
 
-/** "Files ........ 4": a label, a dotted leader, a right-aligned number. */
+/** "Files ........ 4": a label, a dotted leader, a right-aligned value. */
 const ReceiptLine = ({ label, value }: { label: string; value: string }) => (
   <div className="flex items-baseline gap-2">
     <dt className="shrink-0">{label}</dt>
@@ -250,137 +362,51 @@ const ReceiptLine = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const AssistantLedger = ({
-  sources,
-  onRetry,
-}: {
-  sources: Sources;
-  onRetry?: () => void;
-}) => {
+const receiptList =
+  "flex min-w-0 flex-col gap-1.5 font-receipt text-[13px] text-[#4B5468]";
+
+const RECENT_LIMIT = 5;
+const DOCUMENT_COLUMNS = ["w-full", "hidden @xl:table-cell", ""];
+
+const KnowledgeSheet = ({ sources }: { sources: Sources }) => {
   const docs = sources.status === "ready" ? sources.data : null;
   const latest = docs ? Math.max(0, ...docs.map((s) => s.ingested_at ?? 0)) : 0;
   const count = (n: number) => (docs ? n.toLocaleString() : "—");
-
-  const tone =
-    sources.status === "error"
-      ? "error"
-      : docs && docs.length === 0
-        ? "warning"
-        : "ok";
+  const recent = docs
+    ? [...docs]
+        .sort((a, b) => (b.ingested_at ?? 0) - (a.ingested_at ?? 0))
+        .slice(0, RECENT_LIMIT)
+    : [];
 
   return (
-    <section
-      aria-label="Assistant status"
-      className="relative z-10 -mt-14 overflow-hidden rounded-xl border border-brand-ink/10 bg-white shadow-[0_18px_36px_-28px_rgba(18,23,42,0.45)] sm:-mt-16 @2xl:grid @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
-    >
-      {/* Verdict */}
-      <div
-        className={clsx(
-          "flex flex-col gap-4 p-6 sm:p-7",
-          tone === "warning" && "bg-[#FFFAEB]",
-        )}
-      >
-        {sources.status === "loading" ? (
-          <>
-            <Skeleton className="h-6 w-36" />
-            <Skeleton className="h-10 w-56 max-w-full" />
-            <Skeleton className="h-4 w-full max-w-sm" />
-            <Skeleton className="mt-1 h-10 w-32" />
-          </>
-        ) : (
-          <>
-            <p
-              className={clsx(
-                "inline-flex w-fit items-center gap-2 rounded-[3px] border px-2 py-1 font-receipt text-[11px] tracking-[0.12em] uppercase",
-                tone === "ok" && "border-primary-700/30 text-primary-800",
-                tone === "warning" && "border-[#B54708]/30 text-[#93370D]",
-                tone === "error" && "border-[#B42318]/30 text-[#B42318]",
+    // -mt: the grid's top padding plus the part that sits on the band.
+    <Panel className="relative z-10 -mt-[5.5rem] min-w-0 overflow-hidden shadow-[0_18px_36px_-28px_rgba(18,23,42,0.45)] sm:-mt-24">
+      <div className="@container">
+        <section
+          aria-labelledby="knowledge-count"
+          className="grid items-end gap-x-10 gap-y-5 px-4 py-6 sm:px-6 @xl:grid-cols-[auto_minmax(0,1fr)] @3xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]"
+        >
+          <h2
+            id="knowledge-count"
+            className="flex items-baseline gap-3 self-start @xl:row-span-2 @3xl:row-span-1"
+          >
+            <span className="font-receipt text-[64px] leading-[0.85] font-normal tracking-[-0.04em] tabular-nums sm:text-[76px]">
+              {docs ? (
+                docs.length.toLocaleString()
+              ) : sources.status === "loading" ? (
+                <Skeleton className="h-14 w-12 sm:h-16" />
+              ) : (
+                "—"
               )}
-            >
-              <span
-                aria-hidden="true"
-                className={clsx(
-                  "h-1.5 w-1.5 rounded-full",
-                  tone === "ok" && "bg-primary-700",
-                  tone === "warning" && "bg-[#B54708]",
-                  tone === "error" && "bg-[#B42318]",
-                )}
-              />
-              Assistant status
-            </p>
-            <h2 className="font-display text-[34px] leading-[1.05] tracking-[-0.015em] sm:text-[40px]">
-              {tone === "ok"
-                ? "Ready to answer"
-                : tone === "warning"
-                  ? "Needs content"
-                  : "Status unavailable"}
-            </h2>
-            <p className="max-w-md text-sm text-[#4B5468]">
-              {tone === "ok" && docs
-                ? `Visitors get answers from ${plural(docs.length, "document")}, each with its source.`
-                : tone === "warning"
-                  ? "It has nothing to answer from yet. Add your policies, FAQs or product pages and it can start."
-                  : sources.status === "error"
-                    ? `We couldn’t check your knowledge base: ${sources.message}`
-                    : null}
-            </p>
-            {/* "Add content" lives in the header: it is not repeated here. */}
-            {tone === "ok" && (
-              <Link
-                href={CHAT_PATH}
-                className={clsx(buttonSecondary, "mt-1 w-fit")}
-              >
-                <MessageSquare
-                  aria-hidden="true"
-                  className="h-4 w-4 text-primary-700"
-                />
-                Test in chat
-              </Link>
-            )}
-            {tone === "error" && onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className={clsx(buttonSecondary, "mt-1 w-fit")}
-              >
-                Try again
-              </button>
-            )}
-          </>
-        )}
-      </div>
+            </span>
+            <span className={clsx("text-sm font-normal", mutedText)}>
+              {docs?.length === 1 ? "document" : "documents"}
+              <br />
+              it answers from
+            </span>
+          </h2>
 
-      {/* The count behind it */}
-      <div className="flex flex-col border-t border-brand-ink/10 p-6 sm:p-7 @2xl:border-t-0 @2xl:border-l">
-        <div className="flex items-baseline justify-between gap-4 text-sm text-[#4B5468]">
-          <h3>
-            <Link
-              href={KNOWLEDGE_PATH}
-              className="font-medium underline decoration-brand-ink/20 underline-offset-4 hover:decoration-primary-700"
-            >
-              Documents
-            </Link>
-          </h3>
-          <p className="text-xs">
-            {docs
-              ? docs.length
-                ? `last added ${relativeTime(latest || null)}`
-                : "nothing added yet"
-              : null}
-          </p>
-        </div>
-
-        <div className="mt-auto flex flex-wrap items-end gap-x-10 gap-y-5 pt-4">
-          <p className="font-receipt text-[64px] leading-none tracking-[-0.04em] tabular-nums sm:text-[76px]">
-            {docs ? (
-              docs.length.toLocaleString()
-            ) : sources.status === "loading" ? (
-              <Skeleton className="h-16 w-14 sm:h-[76px]" />
-            ) : (
-              "—"
-            )}
-          </p>
-          <dl className="flex min-w-[12rem] flex-1 flex-col gap-1.5 pb-1 font-receipt text-[13px] text-[#4B5468]">
+          <dl className={receiptList}>
             {SOURCE_TYPES.map(({ type, plural: label }) => (
               <ReceiptLine
                 key={type}
@@ -391,138 +417,148 @@ const AssistantLedger = ({
                 )}
               />
             ))}
-            <div className="mt-1.5 border-t border-dashed border-brand-ink/25 pt-2.5">
-              <ReceiptLine
-                label="Indexed chunks"
-                value={count(docs?.reduce((sum, s) => sum + s.chunks, 0) ?? 0)}
-              />
-            </div>
           </dl>
-        </div>
-      </div>
-    </section>
-  );
-};
 
-// ─── Recent documents ────────────────────────────────────────────────
+          <dl className={clsx(receiptList, "@xl:col-start-2 @3xl:col-start-3")}>
+            <ReceiptLine
+              label="Indexed chunks"
+              value={count(docs?.reduce((sum, s) => sum + s.chunks, 0) ?? 0)}
+            />
+            <ReceiptLine
+              label="Last added"
+              value={docs ? relativeTime(latest || null) : "—"}
+            />
+          </dl>
+        </section>
 
-const RECENT_LIMIT = 5;
-const DOCUMENT_COLUMNS = [
-  "w-full",
-  "hidden sm:table-cell",
-  "hidden sm:table-cell",
-  "",
-];
-
-const RecentDocuments = ({ sources }: { sources: Sources }) => {
-  const recent =
-    sources.status === "ready"
-      ? [...sources.data]
-          .sort((a, b) => (b.ingested_at ?? 0) - (a.ingested_at ?? 0))
-          .slice(0, RECENT_LIMIT)
-      : [];
-  const total = sources.status === "ready" ? sources.data.length : 0;
-
-  return (
-    <Panel className="min-w-0 overflow-hidden">
-      <section aria-labelledby="recent-documents">
-        <div className="flex items-baseline justify-between gap-4 px-4 py-4 sm:px-6">
-          <h2 id="recent-documents" className="text-base font-semibold">
-            Recent documents
-          </h2>
-          {total > 0 && (
-            <Link href={KNOWLEDGE_PATH} className={clsx(textLink, "text-sm")}>
-              {total > RECENT_LIMIT ? `View all ${total}` : "View all"}
-            </Link>
-          )}
-        </div>
-        <table className={tableLook}>
-          <thead>
-            <tr>
-              <th scope="col" className={clsx(thLook, "w-full")}>
-                Document
-              </th>
-              <th scope="col" className={clsx(thLook, "hidden sm:table-cell")}>
-                Type
-              </th>
-              <th
-                scope="col"
-                className={clsx(thLook, "hidden text-right sm:table-cell")}
+        <section
+          aria-labelledby="recent-documents"
+          className="border-t border-dashed border-brand-ink/25"
+        >
+          <div className="flex items-baseline justify-between gap-4 px-4 pt-5 pb-4 sm:px-6">
+            <h2 id="recent-documents" className="text-base font-semibold">
+              Recent documents
+            </h2>
+            {docs && docs.length > 0 && (
+              <Link
+                href={KNOWLEDGE_PATH}
+                className={clsx(textLink, "-my-2 py-2 text-sm")}
               >
-                Chunks
-              </th>
-              <th scope="col" className={clsx(thLook, "text-right")}>
-                Added
-              </th>
-            </tr>
-          </thead>
-          <tbody aria-busy={sources.status === "loading"}>
-            {sources.status === "loading" && (
-              <SkeletonRows columns={DOCUMENT_COLUMNS} />
+                {docs.length > RECENT_LIMIT
+                  ? `View all ${docs.length}`
+                  : "View all"}
+              </Link>
             )}
-
-            {/* The ledger above offers "Try again": not repeated here. */}
-            {sources.status === "error" && (
-              <EmptyTableRow colSpan={4} title="Documents could not be loaded">
-                {sources.message}
-              </EmptyTableRow>
-            )}
-
-            {sources.status === "ready" && recent.length === 0 && (
-              <EmptyTableRow colSpan={4} title="No documents yet">
-                Upload a PDF, add a page from your site or paste text with{" "}
-                <span className="font-medium text-brand-ink">Add content</span>{" "}
-                at the top of this page.
-              </EmptyTableRow>
-            )}
-
-            {recent.map((source, index) => (
-              <tr
-                key={source.source_id}
-                style={{ "--row": index } as React.CSSProperties}
-                className={clsx("console-row-in", rowLook)}
-              >
-                {/* max-w-0 lets the title truncate instead of widening the table. */}
-                <td className={clsx(tdLook, "w-full max-w-0")}>
-                  <p className="truncate font-medium">
-                    {source.title || source.source_id}
-                  </p>
-                  <p className={clsx("mt-0.5 text-xs sm:hidden", mutedText)}>
-                    {typeLabel(source.source_type)} ·{" "}
-                    {plural(source.chunks, "chunk")}
-                  </p>
-                </td>
-                <td
-                  className={clsx(
-                    tdLook,
-                    "hidden whitespace-nowrap sm:table-cell",
-                    mutedText,
-                  )}
+          </div>
+          <table className={tableLook}>
+            <thead>
+              <tr>
+                <th scope="col" className={clsx(thLook, "w-full")}>
+                  Document
+                </th>
+                <th
+                  scope="col"
+                  className={clsx(thLook, "hidden text-right @xl:table-cell")}
                 >
-                  {typeLabel(source.source_type)}
-                </td>
-                <td
-                  className={clsx(
-                    tdLook,
-                    "hidden text-right font-receipt text-[13px] tabular-nums sm:table-cell",
-                  )}
-                >
-                  {source.chunks.toLocaleString()}
-                </td>
-                <td
-                  className={clsx(
-                    tdLook,
-                    "text-right whitespace-nowrap",
-                    mutedText,
-                  )}
-                >
-                  {relativeTime(source.ingested_at)}
-                </td>
+                  Chunks
+                </th>
+                <th scope="col" className={clsx(thLook, "text-right")}>
+                  Added
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            </thead>
+            <tbody aria-busy={sources.status === "loading"}>
+              {sources.status === "loading" && (
+                <SkeletonRows columns={DOCUMENT_COLUMNS} />
+              )}
+
+              {/* The header offers "Try again": not repeated here. */}
+              {sources.status === "error" && (
+                <EmptyTableRow
+                  colSpan={3}
+                  title="Documents could not be loaded"
+                >
+                  {sources.message}
+                </EmptyTableRow>
+              )}
+
+              {docs && recent.length === 0 && (
+                <EmptyTableRow colSpan={3} title="No documents yet">
+                  Upload a PDF, add a page from your site or paste text with{" "}
+                  <span className="font-medium text-brand-ink">
+                    Add content
+                  </span>{" "}
+                  at the top of this page.
+                </EmptyTableRow>
+              )}
+
+              {recent.map((source, index) => {
+                const type = sourceType(source.source_type);
+                const host = hostOf(source.url);
+                return (
+                  <tr
+                    key={source.source_id}
+                    style={{ "--row": index } as React.CSSProperties}
+                    className={clsx("console-row-in", rowLook)}
+                  >
+                    {/* max-w-0 lets the title truncate instead of widening the table. */}
+                    <td className={clsx(tdLook, "w-full max-w-0")}>
+                      <div className="flex items-baseline gap-3">
+                        <span
+                          title={type.label}
+                          className="w-9 shrink-0 font-receipt text-[11px] tracking-[0.08em] text-primary-800 uppercase"
+                        >
+                          {type.code}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {source.title || source.source_id}
+                          </p>
+                          {/* What the narrow table has no column for. */}
+                          <p
+                            className={clsx(
+                              "mt-0.5 truncate text-xs",
+                              mutedText,
+                              !host && "@xl:hidden",
+                            )}
+                          >
+                            {host && (
+                              <span translate="no" className="font-receipt">
+                                {host}
+                              </span>
+                            )}
+                            <span className="@xl:hidden">
+                              {host && " · "}
+                              {plural(source.chunks, "chunk")}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      className={clsx(
+                        tdLook,
+                        "hidden text-right font-receipt text-[13px] tabular-nums @xl:table-cell",
+                      )}
+                    >
+                      {source.chunks.toLocaleString()}
+                    </td>
+                    <td
+                      className={clsx(
+                        tdLook,
+                        "text-right whitespace-nowrap",
+                        mutedText,
+                      )}
+                    >
+                      {relativeTime(source.ingested_at)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      </div>
     </Panel>
   );
 };
@@ -623,7 +659,7 @@ const SetupNote = ({ steps }: { steps: SetupStep[] }) => {
               <Link
                 href={step.href}
                 aria-label={`${step.action}: ${step.title}`}
-                className={clsx(textLink, "shrink-0 text-sm")}
+                className={clsx(textLink, "-my-2 shrink-0 py-2 text-sm")}
               >
                 {step.action}
               </Link>
@@ -647,7 +683,10 @@ const OrganizationsNote = ({
   <SideNote
     title="Organizations"
     meta={
-      <Link href={ORGANIZATIONS_PATH} className={clsx(textLink, "text-sm")}>
+      <Link
+        href={ORGANIZATIONS_PATH}
+        className={clsx(textLink, "-my-2 py-2 text-sm")}
+      >
         Manage
       </Link>
     }

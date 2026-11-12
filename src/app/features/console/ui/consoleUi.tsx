@@ -5,6 +5,8 @@ import { clsx } from "clsx";
 import { Info, Loader2, Search, X } from "lucide-react";
 import { primaryButtonLook } from "@/app/features/landing/ui/primitives";
 import {
+  ADMIN,
+  OWNER,
   roleLabel,
   type OrganizationRole,
 } from "@/app/features/organizations/types/organization.types";
@@ -18,7 +20,9 @@ import {
 
 export const mutedText = "text-[#4B5468]";
 
-const disabledLook = "disabled:pointer-events-none disabled:opacity-60";
+// Every console button sinks 1px while pressed, so a click is felt.
+const disabledLook =
+  "active:translate-y-px motion-reduce:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60";
 
 export const buttonPrimary = `${primaryButtonLook} h-10 gap-2 px-4 text-sm ${disabledLook}`;
 
@@ -139,9 +143,11 @@ export const RoleBadge = ({ role }: { role: OrganizationRole }) => (
   <span
     className={clsx(
       "inline-flex h-6 items-center rounded-[4px] px-2 text-xs font-medium whitespace-nowrap",
-      role === 0 && "bg-primary-700 text-white",
-      role === 1 && "bg-primary-100 text-primary-800",
-      role !== 0 && role !== 1 && "border border-brand-ink/20 text-[#4B5468]",
+      role === OWNER && "bg-primary-700 text-white",
+      role === ADMIN && "bg-primary-100 text-primary-800",
+      role !== OWNER &&
+        role !== ADMIN &&
+        "border border-brand-ink/20 text-[#4B5468]",
     )}
   >
     {roleLabel(role)}
@@ -393,7 +399,7 @@ export const Modal = ({
         // A click on the backdrop lands on the <dialog> element itself.
         if (event.target === ref.current) onClose();
       }}
-      className="m-auto w-[min(100%-2rem,480px)] rounded-xl border border-brand-ink/10 bg-white p-0 text-brand-ink shadow-[0_24px_48px_-24px_rgba(18,23,42,0.45)] backdrop:bg-black/35"
+      className="m-auto w-[min(100%-2rem,480px)] rounded-xl border border-brand-ink/10 bg-white p-0 text-brand-ink shadow-[0_24px_48px_-24px_rgba(18,23,42,0.45)] overscroll-contain backdrop:bg-black/35"
     >
       {open && (
         <div className="p-6 sm:p-7">

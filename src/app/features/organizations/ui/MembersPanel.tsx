@@ -340,7 +340,8 @@ const AddMemberModal = ({
   onClose: () => void;
   organizationId: string;
   organizationName: string;
-  onAdded: () => Promise<void>;
+  /** Reloads the tables; resolves once the backend has answered. */
+  onAdded: () => Promise<unknown>;
 }) => {
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
@@ -371,12 +372,14 @@ const AddMemberModal = ({
         email: trimmed,
         role,
       });
+      // Stay on "Adding…" until the tables show the new person, so the
+      // dialog never closes onto a list that does not have them yet.
+      await onAdded();
       addToastMessage("success", `${trimmed} was added as ${roleLabel(role)}.`);
       setSaving(false);
       setEmail("");
       setRole(DEFAULT_MEMBER_ROLE);
       onClose();
-      await onAdded();
     } catch (caught) {
       handleApiError(caught, {
         onFieldErrors: (fields) => setError(fields.email ?? fields.role),

@@ -263,9 +263,11 @@ const RolePanel = ({
   member: OrganizationMember;
   editable: boolean;
   self: boolean;
-  onSaved: () => Promise<void>;
+  /** Reloads the page; resolves once the backend has answered. */
+  onSaved: () => Promise<unknown>;
 }) => {
   const allowed = assignableRoles(organization.role).map((r) => r.value);
+  const { refresh: refreshAccess } = useOrganizationAccess();
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
   const [role, setRole] = useState<OrganizationRole>(member.role);
@@ -280,11 +282,14 @@ const RolePanel = ({
       await organizationsApi.changeMemberRole(organization.id, member.userId, {
         role,
       });
+      // Read back what the backend now holds before saying it is done. The
+      // change can move the viewer's own role too (their own row, or an
+      // ownership hand-over), which decides what the sidebar offers.
+      await Promise.all([onSaved(), refreshAccess()]);
       addToastMessage(
         "success",
         `${displayName(member)} is now ${roleLabel(role)}.`,
       );
-      await onSaved();
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -413,13 +418,14 @@ const RemovePanel = ({
     setBusy(true);
     try {
       await organizationsApi.removeMember(organization.id, member.userId);
+      // Leaving can take away the Organizations area: know before moving on.
+      if (self) await refresh();
       addToastMessage(
         "success",
         self
           ? `You left ${organization.name}.`
           : `${displayName(member)} was removed.`,
       );
-      if (self) refresh();
       router.replace(
         self ? ORGANIZATIONS_PATH : organizationPath(organization.id),
       );
