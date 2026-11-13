@@ -1,40 +1,72 @@
-# OAuth comparison
+# Cortex frontend
 
-This Next.js app contains two independent authentication implementations:
+[![CI](https://github.com/Matt-2004/Cortex-Frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-2004/Cortex-Frontend/actions/workflows/ci.yml)
 
-- **Auth.js** at `/api/auth`: custom credentials login backed by a bcrypt hash,
-  plus Google OAuth.
-- **Auth0** at `/auth/*`: the Auth0 Next.js SDK hosted login, logout, and
-  profile routes.
+Cortex is an AI assistant a business embeds on its website. It answers
+visitors' questions (shipping, returns…) from the business's own documents,
+cites the source of every answer, and recommends products from its catalog.
 
-## Configure locally
+This repo is the Next.js frontend: the marketing site, the auth pages and the
+signed-in console.
 
-Copy `.env.local.example` to `.env.local` and fill in the credentials for the
-provider you want to test. Auth0 can remain empty while comparing Auth.js.
+## Stack
 
-For custom Auth.js login, set `AUTH_CUSTOM_EMAIL` and
-`AUTH_CUSTOM_PASSWORD_HASH`. Generate a hash with:
+Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS
+v4, next-auth 4 (Google), zod, lucide-react.
 
-```bash
-node -e "console.log(require('bcryptjs').hashSync('change-me', 12))"
-```
+## Run locally
 
-For Google OAuth, create credentials with this callback URL:
-
-```text
-http://localhost:3000/api/auth/callback/google
-```
-
-For Auth0, configure the application callback URL as:
-
-```text
-http://localhost:3000/auth/callback
-```
-
-Then start the app:
+Requires Node 24.
 
 ```bash
-npm run dev
+npm install
+cp .env.local.example .env.local   # then fill in the values
+npm run dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+| Variable                                                    | Used for                            |
+| ----------------------------------------------------------- | ----------------------------------- |
+| `CORTEX_BACKEND_URL`                                        | Cortex API (auth, organizations)    |
+| `CORTEX_AI_URL`, `CORTEX_AI_API_KEY`, `CORTEX_AI_TENANT_ID` | Cortex AI service (knowledge, chat) |
+| `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`   | Google sign-in                      |
+
+All of these are server-only. The browser talks to this app's `/api/*` route
+handlers, which call the backend; it never calls the backend directly or holds
+tokens (the session lives in HttpOnly cookies).
+
+## Scripts
+
+| Command                       | What it does                             |
+| ----------------------------- | ---------------------------------------- |
+| `npm run dev`                 | Dev server on port 3000                  |
+| `npm run build` / `npm start` | Production build and server              |
+| `npm run typecheck`           | TypeScript, no output                    |
+| `npm run lint`                | ESLint over the repo                     |
+| `npm run check`               | Type-check, lint and build: what CI runs |
+
+## Project layout
+
+```
+src/app/
+  page.tsx            marketing landing (/)
+  auth/               sign in, register, verify email, reset password
+  console/            signed-in area: overview, organizations, knowledge, chat
+  api/                route handlers that forward to the backend
+  features/<name>/    api/ hooks/ server/ types/ ui/ utils/ per feature
+  shared/             API client, errors, shared types
+```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to any branch and on every pull
+request into `main`. It installs from the lockfile, then type-checks, lints and
+builds the app without any secrets. If one step fails, the run fails.
+
+To stop broken code reaching `main`, a repo admin should turn on branch
+protection: **Settings → Branches → Add rule for `main` → Require status
+checks to pass**, and pick **Type-check, lint, build**.
+
+Run `npm run check` before pushing to catch the same failures locally.
+
+The test files under `features/*/test` are not wired up yet (there is no Jest
+config), so CI does not run them.

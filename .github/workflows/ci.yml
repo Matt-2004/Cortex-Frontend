@@ -1,0 +1,52 @@
+name: CI
+
+# Every push (any branch) and every pull request into main must type-check,
+# lint and build. Make "Type-check, lint, build" a required status check on
+# main (Settings → Branches) so a red run blocks the merge.
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Type-check, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Reuses Next's compiler cache between runs; keyed on the lockfile and sources.
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      # Builds without secrets: a page that needs env vars at build time fails here.
+      - name: Build
+        run: npm run build
