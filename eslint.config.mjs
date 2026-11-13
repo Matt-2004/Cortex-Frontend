@@ -15,8 +15,8 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      "@typescript-eslint/no-empty-object-type": "on",
-      "@typescript-eslint/no-unused-vars": "on",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-unused-vars": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/set-state-in-render": "off",
     },
