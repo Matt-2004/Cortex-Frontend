@@ -27,8 +27,21 @@ export const ORGANIZATION_ROLES = [
   },
 ] as const;
 
-/** `OrganizationRole` in the API: an integer, see ORGANIZATION_ROLES. */
+/**
+ * A role inside the console: an integer, see ORGANIZATION_ROLES. The current
+ * API spec sends and expects names ("Owner" | "Admin" | "Member"); `toRole`
+ * reads either form and `toRoleName` writes the name.
+ */
 export type OrganizationRole = number;
+
+/** `OrganizationRole` as the API spells it in request bodies. */
+export type OrganizationRoleName = "Owner" | "Admin" | "Member";
+
+export const toRoleName = (role: OrganizationRole): OrganizationRoleName => {
+  const match = ORGANIZATION_ROLES.find((entry) => entry.value === role);
+  if (!match) throw new Error(`Unknown organization role: ${role}`);
+  return match.label;
+};
 
 /** Role offered first when adding a member: the least privileged one. */
 export const DEFAULT_MEMBER_ROLE: OrganizationRole =
@@ -125,6 +138,30 @@ export interface OrganizationMember {
   joinedAt: string;
 }
 
+/** `InvitationDto`: a pending invitation, as owners and admins see it. */
+export interface OrganizationInvitation {
+  /** uuid */
+  id: string;
+  email: string;
+  role: OrganizationRole;
+  invitedByName: string;
+  /** ISO 8601 date-time. */
+  createdAt: string;
+  /** ISO 8601 date-time. */
+  expiresAt: string;
+}
+
+/** `InvitationPreviewDto`: what the invitee sees before accepting. */
+export interface InvitationPreview {
+  organizationName: string;
+  organizationLogoUrl: string | null;
+  email: string;
+  role: OrganizationRole;
+  invitedByName: string;
+  /** ISO 8601 date-time. */
+  expiresAt: string;
+}
+
 // ─── Requests (from the OpenAPI document) ────────────────────────────
 
 export interface CreateOrganizationRequest {
@@ -137,9 +174,15 @@ export interface UpdateOrganizationRequest {
   logoUrl: string | null;
 }
 
-export interface AddMemberRequest {
+/** `InviteMemberRequest` */
+export interface InviteMemberRequest {
   email: string;
   role: OrganizationRole;
+}
+
+/** `AcceptInvitationRequest` */
+export interface AcceptInvitationRequest {
+  token: string;
 }
 
 export interface ChangeMemberRoleRequest {

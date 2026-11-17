@@ -9,6 +9,7 @@ import { organizationsApi } from "../api/organizationsApi";
 import { useResource } from "@/app/features/console/hooks/useResource";
 import { canManage } from "../types/organization.types";
 import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
+import { InvitationsPanel } from "./InvitationsPanel";
 import { MembersPanel } from "./MembersPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { BillingPanel } from "./BillingPanel";
@@ -21,13 +22,18 @@ import {
   buttonSecondary,
 } from "@/app/features/console/ui/consoleUi";
 
+/** `manageOnly` tabs are for owners and admins; members never see them. */
 const TABS = [
-  { id: "members", label: "Members" },
-  { id: "settings", label: "Settings" },
-  { id: "billing", label: "Billing" },
+  { id: "members", label: "Members", manageOnly: false },
+  { id: "invitations", label: "Invitations", manageOnly: true },
+  { id: "settings", label: "Settings", manageOnly: false },
+  { id: "billing", label: "Billing", manageOnly: true },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+const isTabId = (value: string | null): value is TabId =>
+  TABS.some((entry) => entry.id === value);
 
 const Breadcrumb = ({ current }: { current?: string }) => (
   <nav aria-label="Breadcrumb">
@@ -52,7 +58,7 @@ const Breadcrumb = ({ current }: { current?: string }) => (
   </nav>
 );
 
-/** /console/organizations/{organizationId} — one organization: members and settings. */
+/** /console/organizations/{organizationId} — one organization: members, invitations and settings. */
 export const OrganizationDetail = ({
   organizationId,
 }: {
@@ -69,8 +75,7 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const requested = searchParams.get("tab");
-  const tab: TabId =
-    requested === "settings" || requested === "billing" ? requested : "members";
+  const tab: TabId = isTabId(requested) ? requested : "members";
   const setTab = (next: TabId) =>
     router.replace(next === "members" ? pathname : `${pathname}?tab=${next}`, {
       scroll: false,
@@ -118,6 +123,11 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
 
   const organization = resource.data;
   const manageable = canManage(organization.role);
+  const tabs = TABS.filter((entry) => manageable || !entry.manageOnly);
+  // A member deep-linked to a manage-only tab lands on Members instead.
+  const current: TabId = tabs.some((entry) => entry.id === tab)
+    ? tab
+    : "members";
 
   if (!manageable) {
     return (
@@ -161,18 +171,18 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
         }
       >
         <div role="tablist" aria-label="Organization" className="flex gap-6">
-          {TABS.map(({ id, label }) => (
+          {tabs.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               role="tab"
               id={`tab-${id}`}
-              aria-selected={tab === id}
+              aria-selected={current === id}
               aria-controls={`panel-${id}`}
               onClick={() => setTab(id)}
               className={clsx(
                 "-mb-px border-b-2 pb-3 text-sm transition-colors duration-150",
-                tab === id
+                current === id
                   ? "border-primary-700 font-semibold text-brand-ink"
                   : "border-transparent text-[#4B5468] hover:text-brand-ink",
               )}
@@ -184,14 +194,24 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
       </PageHeader>
 
       <Container className="py-8 sm:py-10">
-        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-          {tab === "members" ? (
+        <div
+          role="tabpanel"
+          id={`panel-${current}`}
+          aria-labelledby={`tab-${current}`}
+        >
+          {current === "members" ? (
             <MembersPanel
               organizationId={organization.id}
               organizationName={organization.name}
               viewerRole={organization.role}
             />
-          ) : tab === "billing" ? (
+          ) : current === "invitations" ? (
+            <InvitationsPanel
+              organizationId={organization.id}
+              organizationName={organization.name}
+              viewerRole={organization.role}
+            />
+          ) : current === "billing" ? (
             <BillingPanel
               organizationId={organization.id}
               organizationName={organization.name}
@@ -228,6 +248,7 @@ export const OrganizationDetailSkeleton = () => (
         </div>
         <div className="mt-8 flex gap-6 pb-3">
           <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-12" />
         </div>
