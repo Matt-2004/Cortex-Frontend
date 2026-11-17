@@ -12,6 +12,7 @@ import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
 import { InvitationsPanel } from "./InvitationsPanel";
 import { MembersPanel } from "./MembersPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { BillingPanel } from "./BillingPanel";
 import {
   Avatar,
   ErrorState,
@@ -26,6 +27,7 @@ const TABS = [
   { id: "members", label: "Members", manageOnly: false },
   { id: "invitations", label: "Invitations", manageOnly: true },
   { id: "settings", label: "Settings", manageOnly: false },
+  { id: "billing", label: "Billing", manageOnly: true },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -209,6 +211,12 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
               organizationName={organization.name}
               viewerRole={organization.role}
             />
+          ) : current === "billing" ? (
+            <BillingPanel
+              organizationId={organization.id}
+              organizationName={organization.name}
+              viewerRole={organization.role}
+            />
           ) : (
             <SettingsPanel
               // Remount when the saved values change, so the form starts
@@ -242,6 +250,7 @@ export const OrganizationDetailSkeleton = () => (
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-12" />
         </div>
       </Container>
     </div>
