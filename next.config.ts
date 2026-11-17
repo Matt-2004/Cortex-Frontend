@@ -28,6 +28,13 @@ const nextConfig: NextConfig = {
         destination: "/auth/verify-email",
         permanent: false,
       },
+      // Stripe returns to the backend's {FRONTEND_BASE_URL}/organizations/{id}/billing
+      // (?checkout=success|cancelled after Checkout, nothing after the portal).
+      {
+        source: "/organizations/:organizationId/billing",
+        destination: "/console/organizations/:organizationId?tab=billing",
+        permanent: false,
+      },
     ];
   },
   cacheComponents: true,

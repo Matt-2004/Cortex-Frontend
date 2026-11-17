@@ -71,6 +71,14 @@ export const MEMBER: OrganizationRole = ORGANIZATION_ROLES[2].value;
 export const canManage = (role: OrganizationRole) =>
   role === OWNER || role === ADMIN;
 
+/** Who may view subscription and billing details: Owners and Admins. */
+export const canViewBilling = (role: OrganizationRole): boolean =>
+  role === OWNER || role === ADMIN;
+
+/** Who may manage billing (start checkout, open customer portal): Owners only. */
+export const canManageBilling = (role: OrganizationRole): boolean =>
+  role === OWNER;
+
 /** May `actor` change the role of, or remove, someone with `target` role? */
 export const canEditMember = (
   actor: OrganizationRole,

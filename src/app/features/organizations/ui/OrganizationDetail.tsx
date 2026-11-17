@@ -11,6 +11,7 @@ import { canManage } from "../types/organization.types";
 import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
 import { MembersPanel } from "./MembersPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { BillingPanel } from "./BillingPanel";
 import {
   Avatar,
   ErrorState,
@@ -23,6 +24,7 @@ import {
 const TABS = [
   { id: "members", label: "Members" },
   { id: "settings", label: "Settings" },
+  { id: "billing", label: "Billing" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -66,8 +68,9 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const requested = searchParams.get("tab");
   const tab: TabId =
-    searchParams.get("tab") === "settings" ? "settings" : "members";
+    requested === "settings" || requested === "billing" ? requested : "members";
   const setTab = (next: TabId) =>
     router.replace(next === "members" ? pathname : `${pathname}?tab=${next}`, {
       scroll: false,
@@ -188,6 +191,12 @@ const Organization = ({ organizationId }: { organizationId: string }) => {
               organizationName={organization.name}
               viewerRole={organization.role}
             />
+          ) : tab === "billing" ? (
+            <BillingPanel
+              organizationId={organization.id}
+              organizationName={organization.name}
+              viewerRole={organization.role}
+            />
           ) : (
             <SettingsPanel
               // Remount when the saved values change, so the form starts
@@ -220,6 +229,7 @@ export const OrganizationDetailSkeleton = () => (
         <div className="mt-8 flex gap-6 pb-3">
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-12" />
         </div>
       </Container>
     </div>
