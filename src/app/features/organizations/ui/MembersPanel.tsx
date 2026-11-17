@@ -1,22 +1,15 @@
 "use client";
 
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
-import { ChevronRight, UserPlus } from "lucide-react";
-import { useToast } from "@/app/features/toast/hooks/useToast";
-import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
+import { ChevronRight } from "lucide-react";
 import { organizationsApi } from "../api/organizationsApi";
 import { useResource } from "@/app/features/console/hooks/useResource";
 import {
   ADMIN,
-  DEFAULT_MEMBER_ROLE,
-  ORGANIZATION_LIMITS,
-  ORGANIZATION_ROLES,
   OWNER,
-  assignableRoles,
   canManage,
-  roleLabel,
   type OrganizationMember,
   type OrganizationRole,
 } from "../types/organization.types";
@@ -24,17 +17,11 @@ import { useConsoleUser } from "@/app/features/console/ui/ConsoleShell";
 import {
   Avatar,
   ErrorState,
-  Field,
-  Modal,
   Notice,
   Panel,
   SearchInput,
   SkeletonRows,
-  Spinner,
-  buttonPrimary,
-  buttonSecondary,
   formatDate,
-  inputLook,
   mutedText,
   rowLook,
   tableLook,
@@ -47,10 +34,6 @@ const SEARCH_FROM = 5;
 
 const MEMBER_COLUMNS = ["", "hidden md:table-cell", "w-10"];
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const selectLook = clsx(inputLook, "pr-8");
-
 export const displayName = (member: OrganizationMember) =>
   member.name.trim() || member.email;
 
@@ -58,9 +41,9 @@ export const memberPath = (organizationId: string, memberUserId: string) =>
   `/console/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(memberUserId)}`;
 
 /**
- * The Members tab: who is in the organization. The table is read-only;
+ * The Members tab: who is in the organization. The tables are read-only;
  * a row opens the member's own page, where their role is changed or they are
- * removed.
+ * removed. People join by invitation (the Invitations tab).
  */
 export const MembersPanel = ({
   organizationId,
@@ -69,7 +52,7 @@ export const MembersPanel = ({
 }: {
   organizationId: string;
   organizationName: string;
-  /** The signed-in user's role here: decides what they may add. */
+  /** The signed-in user's role here. */
   viewerRole: OrganizationRole;
 }) => {
   const user = useConsoleUser();
@@ -79,10 +62,9 @@ export const MembersPanel = ({
     (signal: AbortSignal) => organizationsApi.members(organizationId, signal),
     [organizationId],
   );
-  const { resource, reload, retry } = useResource(load);
+  const { resource, retry } = useResource(load);
 
   const [query, setQuery] = useState("");
-  const [adding, setAdding] = useState(false);
   const needle = query.trim().toLowerCase();
   const total = resource.status === "ready" ? resource.data.length : null;
   const visible =
@@ -103,8 +85,8 @@ export const MembersPanel = ({
     <div className="flex flex-col gap-6">
       {!manageable && (
         <Notice>
-          You are a member of {organizationName}. Owners and admins add people
-          and change roles.
+          You are a member of {organizationName}. Owners and admins invite
+          people and change roles.
         </Notice>
       )}
 
@@ -116,7 +98,6 @@ export const MembersPanel = ({
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {/* Title on the left, the one add action at the table's top-right corner. */}
           <div className="flex items-end justify-between gap-4">
             <div className="flex items-baseline gap-3">
               <h2 className="text-lg font-semibold">People</h2>
@@ -128,16 +109,6 @@ export const MembersPanel = ({
                 </p>
               )}
             </div>
-            {manageable && (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className={clsx(buttonPrimary, "h-9 px-3")}
-              >
-                <UserPlus aria-hidden="true" className="h-4 w-4" />
-                Add member
-              </button>
-            )}
           </div>
 
           {total !== null && total > SEARCH_FROM && (
@@ -184,17 +155,6 @@ export const MembersPanel = ({
             })
           )}
         </div>
-      )}
-
-      {manageable && (
-        <AddMemberModal
-          viewerRole={viewerRole}
-          open={adding}
-          onClose={() => setAdding(false)}
-          organizationId={organizationId}
-          organizationName={organizationName}
-          onAdded={reload}
-        />
       )}
     </div>
   );
@@ -325,130 +285,3 @@ const RoleTable = ({
     </section>
   </Panel>
 );
-
-/** Adding someone is a step of its own: the form only shows when asked for. */
-const AddMemberModal = ({
-  viewerRole,
-  open,
-  onClose,
-  organizationId,
-  organizationName,
-  onAdded,
-}: {
-  viewerRole: OrganizationRole;
-  open: boolean;
-  onClose: () => void;
-  organizationId: string;
-  organizationName: string;
-  /** Reloads the tables; resolves once the backend has answered. */
-  onAdded: () => Promise<unknown>;
-}) => {
-  const { addToastMessage } = useToast();
-  const handleApiError = useApiErrorHandler();
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<number>(DEFAULT_MEMBER_ROLE);
-  const [error, setError] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
-
-  const close = () => {
-    if (saving) return;
-    setEmail("");
-    setRole(DEFAULT_MEMBER_ROLE);
-    setError(undefined);
-    onClose();
-  };
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    const trimmed = email.trim();
-    if (!EMAIL_PATTERN.test(trimmed)) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    setError(undefined);
-    setSaving(true);
-    try {
-      await organizationsApi.addMember(organizationId, {
-        email: trimmed,
-        role,
-      });
-      // Stay on "Adding…" until the tables show the new person, so the
-      // dialog never closes onto a list that does not have them yet.
-      await onAdded();
-      addToastMessage("success", `${trimmed} was added as ${roleLabel(role)}.`);
-      setSaving(false);
-      setEmail("");
-      setRole(DEFAULT_MEMBER_ROLE);
-      onClose();
-    } catch (caught) {
-      handleApiError(caught, {
-        onFieldErrors: (fields) => setError(fields.email ?? fields.role),
-      });
-      setSaving(false);
-    }
-  };
-
-  const selected = ORGANIZATION_ROLES.find((entry) => entry.value === role);
-
-  return (
-    <Modal
-      open={open}
-      onClose={close}
-      title="Add a member"
-      description={`They need a Cortex account. They will get access to ${organizationName}.`}
-    >
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-        <Field label="Email" htmlFor="member-email" error={error}>
-          <input
-            id="member-email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(event) => {
-              setEmail(event.target.value);
-              setError(undefined);
-            }}
-            maxLength={ORGANIZATION_LIMITS.emailMax}
-            placeholder="teammate@yourstore.com"
-            autoComplete="off"
-            autoFocus
-            required
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? "member-email-error" : undefined}
-            className={inputLook}
-          />
-        </Field>
-        <Field label="Role" htmlFor="member-role" hint={selected?.description}>
-          <select
-            id="member-role"
-            name="role"
-            value={role}
-            onChange={(event) => setRole(Number(event.target.value))}
-            aria-describedby="member-role-hint"
-            className={selectLook}
-          >
-            {assignableRoles(viewerRole).map((entry) => (
-              <option key={entry.value} value={entry.value}>
-                {entry.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <div className="mt-1 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={close}
-            disabled={saving}
-            className={buttonSecondary}
-          >
-            Cancel
-          </button>
-          <button type="submit" disabled={saving} className={buttonPrimary}>
-            {saving && <Spinner />}
-            {saving ? "Adding…" : "Add member"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-};

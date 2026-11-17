@@ -72,13 +72,17 @@ backend or the AI service directly, and never holds tokens.
 Cortex.Api (ASP.NET). OpenAPI: `{CORTEX_BACKEND_URL}/openapi/v1.json`
 (Scalar UI at `/scalar`). JSON is camelCase, dates are ISO 8601 UTC.
 
-- Organizations: `GET/POST /api/organizations`, `GET/PUT …/{id}`,
-  `GET/POST …/{id}/members`, `PUT/DELETE …/{id}/members/{memberUserId}`.
+- Organizations: `GET/POST /api/organizations`, `GET/PUT …/{id}` (no delete),
+  `GET …/{id}/members`, `PUT/DELETE …/{id}/members/{memberUserId}`.
+- Invitations (the only way to add people): `GET/POST …/{id}/invitations`,
+  `DELETE …/{id}/invitations/{invitationId}`, public
+  `GET /api/invitations/preview?token=`, `POST /api/invitations/accept`.
 - Shapes live in `features/organizations/types/organization.types.ts`
   (`Organization` = `OrganizationDto`, `OrganizationMember` = `MemberDto`).
   There is no "get one member" endpoint: read the list.
-- `OrganizationRole` is an integer: **1 Owner, 2 Admin, 3 Member**.
-  `toRole()` also accepts names; `organizationsApi` normalises every response.
+- `OrganizationRole` is a string enum in the spec (`"Owner"|"Admin"|"Member"`);
+  the console uses integers **1 Owner, 2 Admin, 3 Member**. `toRole()` reads
+  either, `toRoleName()` writes names; `organizationsApi` does both.
 
 ## Permissions (console)
 
@@ -168,8 +172,10 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
   ones link and show their people (one members request per row, first 12);
   member-only ones are listed unlinked.
 - Members: three tables (Owners, Admins, Members), read-only; roles are
-  changed on the member page. "Add member" sits above the tables, top right.
-- Organization tabs are deep-linkable (`?tab=settings`).
+  changed on the member page.
+- Invitations tab (owners and admins only, `manageOnly` in `TABS`): "Invite
+  member" top right, then the pending invitations table with Revoke.
+- Organization tabs are deep-linkable (`?tab=invitations`, `?tab=settings`).
 
 ## Conventions
 

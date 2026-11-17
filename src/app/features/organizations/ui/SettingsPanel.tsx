@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { Check, Copy } from "lucide-react";
 import { useToast } from "@/app/features/toast/hooks/useToast";
@@ -9,18 +8,14 @@ import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
 import { organizationsApi } from "../api/organizationsApi";
 import {
   ORGANIZATION_LIMITS,
-  OWNER,
   type Organization,
 } from "../types/organization.types";
-import { useOrganizationAccess } from "@/app/features/console/ui/ConsoleShell";
 import {
   Avatar,
   Field,
-  Modal,
   Notice,
   Panel,
   Spinner,
-  buttonDanger,
   buttonPrimary,
   buttonSecondary,
   formatDate,
@@ -40,8 +35,8 @@ const isHttpUrl = (value: string) => {
 type Errors = { name?: string; logoUrl?: string };
 
 /**
- * The Settings tab: rename the organization, set its logo, read its details,
- * and (owners only) delete it.
+ * The Settings tab: rename the organization, set its logo, read its details.
+ * The API has no delete endpoint, so there is no delete action.
  */
 export const SettingsPanel = ({
   organization,
@@ -219,113 +214,7 @@ export const SettingsPanel = ({
           <Detail label="Created">{formatDate(organization.createdAt)}</Detail>
         </dl>
       </Panel>
-
-      {organization.role === OWNER && (
-        <DeleteOrganization organization={organization} />
-      )}
     </div>
-  );
-};
-
-/** Deleting can't be undone, so the owner types the name to confirm. */
-const DeleteOrganization = ({
-  organization,
-}: {
-  organization: Organization;
-}) => {
-  const router = useRouter();
-  const { addToastMessage } = useToast();
-  const handleApiError = useApiErrorHandler();
-  const { refresh } = useOrganizationAccess();
-  const [open, setOpen] = useState(false);
-  const [typed, setTyped] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const confirmed = typed.trim() === organization.name;
-
-  const close = () => {
-    if (busy) return;
-    setOpen(false);
-    setTyped("");
-  };
-
-  const remove = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!confirmed) return;
-    setBusy(true);
-    try {
-      await organizationsApi.remove(organization.id);
-      // It may have been the user's last managed organization: the
-      // Organizations area can disappear, so know before moving on.
-      await refresh();
-      addToastMessage("success", `${organization.name} was deleted.`);
-      router.replace("/console/organizations");
-    } catch (error) {
-      handleApiError(error);
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Panel className="flex flex-col gap-4 border-[#D92D20]/25 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 lg:col-span-7">
-      <div>
-        <h2 className="text-base font-semibold">Delete organization</h2>
-        <p className={clsx("mt-1 text-sm", mutedText)}>
-          Removes the organization and everyone&apos;s access to it. This
-          can&apos;t be undone.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={clsx(buttonDanger, "shrink-0")}
-      >
-        Delete organization
-      </button>
-
-      <Modal
-        open={open}
-        onClose={close}
-        title="Delete this organization?"
-        description={`${organization.name} and all its memberships will be removed for good.`}
-      >
-        <form onSubmit={remove} noValidate className="flex flex-col gap-5">
-          <Field
-            label={`Type ${organization.name} to confirm`}
-            htmlFor="delete-organization-name"
-          >
-            <input
-              id="delete-organization-name"
-              name="confirmName"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              disabled={busy}
-              className={inputLook}
-            />
-          </Field>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={close}
-              disabled={busy}
-              className={buttonSecondary}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!confirmed || busy}
-              className={buttonDanger}
-            >
-              {busy && <Spinner />}
-              {busy ? "Deleting…" : "Delete organization"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-    </Panel>
   );
 };
 

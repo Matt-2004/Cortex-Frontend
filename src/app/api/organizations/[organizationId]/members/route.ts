@@ -5,22 +5,15 @@ import {
 
 type Context = { params: Promise<{ organizationId: string }> };
 
-/** GET /api/organizations/{organizationId}/members */
+/**
+ * GET /api/organizations/{organizationId}/members. People join by invitation
+ * (see ../invitations), not by a POST here.
+ */
 export async function GET(request: Request, { params }: Context) {
   const { organizationId } = await params;
   return proxyOrganizations(
     request,
     `/${segment(organizationId)}/members`,
     "GET",
-  );
-}
-
-/** POST /api/organizations/{organizationId}/members — body: { email, role }. */
-export async function POST(request: Request, { params }: Context) {
-  const { organizationId } = await params;
-  return proxyOrganizations(
-    request,
-    `/${segment(organizationId)}/members`,
-    "POST",
   );
 }
