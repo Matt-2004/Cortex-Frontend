@@ -7,6 +7,7 @@ import { useResource } from "@/app/features/console/hooks/useResource";
 import { useToast } from "@/app/features/toast/hooks/useToast";
 import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
 import { subscriptionsApi } from "../api/subscriptionsApi";
+import { formatBytes, formatPlanPrice } from "../utils/planFormat";
 import {
   canManageBilling,
   canViewBilling,
@@ -14,7 +15,6 @@ import {
 } from "../types/organization.types";
 import type {
   BillingRedirectDto,
-  PlanDto,
   SubscriptionDto,
   SubscriptionStatus,
 } from "../types/subscription.types";
@@ -48,36 +48,7 @@ const CHECKOUT_PARAM = "checkout";
 
 const PORTAL = "portal";
 
-// ─── Formatting (display only: every value comes from the backend) ───
-
-const formatPrice = (plan: PlanDto) => {
-  if (plan.priceMinor === 0) return "Free";
-  const amount = plan.priceMinor / 100;
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: plan.currency,
-      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-    }).format(amount);
-  } catch {
-    // A currency code Intl does not know: show it as the backend sent it.
-    return `${amount.toLocaleString()} ${plan.currency}`;
-  }
-};
-
-const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
-
-const formatBytes = (bytes: number) => {
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toLocaleString(undefined, {
-    maximumFractionDigits: unit > 0 && value < 10 ? 1 : 0,
-  })} ${BYTE_UNITS[unit]}`;
-};
+// ─── Formatting ──────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<SubscriptionStatus, string> = {
   Pending: "Pending",
@@ -334,7 +305,7 @@ const Billing = ({
                 </p>
                 {subscription.plan.priceMinor > 0 && (
                   <p className={clsx("mt-1 text-sm", mutedText)}>
-                    {formatPrice(subscription.plan)} / month
+                    {formatPlanPrice(subscription.plan)} / month
                   </p>
                 )}
               </>
@@ -444,7 +415,7 @@ const Billing = ({
                         "text-right font-receipt text-[13px] whitespace-nowrap tabular-nums",
                       )}
                     >
-                      {formatPrice(plan)}
+                      {formatPlanPrice(plan)}
                     </td>
                     <td className={clsx(tdLook, PLAN_NUMBER_CELL)}>
                       {plan.aiAnswersPerPeriod.toLocaleString()}
