@@ -21,7 +21,7 @@ export const ChatPanel = () => (
       <div className="flex min-h-0 flex-1 flex-col">
         <ChatHeader />
         <div className="mx-auto w-full max-w-4xl flex-1 px-5 py-8 sm:px-8">
-          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-card" />
         </div>
       </div>
     }
@@ -38,16 +38,16 @@ export const ChatPanel = () => (
 const AnswerSpecimen = ({ source }: { source: string | null }) => (
   <figure
     aria-label="Example of an answer with its source"
-    className="mb-2 w-[min(100%,320px)] -rotate-[1.5deg] rounded-lg border border-brand-ink/10 bg-white p-4 text-left shadow-[0_14px_28px_-22px_rgba(18,23,42,0.5)] motion-reduce:rotate-0"
+    className="mb-2 w-[min(100%,320px)] -rotate-[1.5deg] rounded-box border border-brand-ink/10 bg-white p-4 text-left shadow-[0_14px_28px_-22px_rgba(18,23,42,0.5)] motion-reduce:rotate-0"
   >
     <p className="text-[13px] leading-relaxed text-brand-ink">
       Answers quote your documents
-      <span className="mx-1 inline-flex h-4 min-w-4 -translate-y-px items-center justify-center rounded-[3px] bg-primary-100 px-1 align-middle text-[10px] font-semibold text-primary-800">
+      <span className="mx-1 inline-flex h-4 min-w-4 -translate-y-px items-center justify-center rounded-badge bg-primary-100 px-1 align-middle text-[10px] font-semibold text-primary-800">
         1
       </span>
       and say so when something isn&rsquo;t covered.
     </p>
-    <figcaption className="mt-3 flex items-center gap-2 border-t border-dashed border-brand-ink/20 pt-2.5 font-receipt text-[11px] text-[#4B5468]">
+    <figcaption className="mt-3 flex items-center gap-2 border-t border-dashed border-brand-ink/20 pt-2.5 font-receipt text-[11px] text-brand-ink-muted">
       <span className="font-semibold text-primary-800">1</span>
       <span className="truncate">{source ?? "your-returns-policy.pdf"}</span>
     </figcaption>
@@ -65,10 +65,10 @@ const ChatHeader = ({
   <div className="shrink-0 border-b border-brand-ink/10 bg-brand-wash">
     <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-5 sm:px-8 sm:py-6">
       <div className="min-w-0">
-        <h1 className="font-display text-[28px] leading-[1.1] tracking-[-0.015em] sm:text-[32px]">
+        <h1 className="font-display font-heading text-[28px] leading-[1.1] tracking-[-0.015em] sm:text-[32px]">
           Chat
         </h1>
-        <p className="mt-1.5 text-sm text-[#4B5468]">
+        <p className="mt-1.5 text-sm text-brand-ink-muted">
           {description ?? "Try your assistant the way visitors will."}
         </p>
       </div>
@@ -216,7 +216,7 @@ const Chat = () => {
         }
         actions={
           <>
-            <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-brand-ink/15 bg-white px-3 text-sm font-medium text-[#4B5468]">
+            <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-control border border-brand-ink/15 bg-white px-3 text-sm font-medium text-brand-ink-muted">
               <input
                 type="checkbox"
                 checked={withRecommendations}
@@ -233,7 +233,7 @@ const Chat = () => {
                 setAnnouncement("Conversation cleared.");
               }}
               disabled={messages.length === 0}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-brand-ink/15 bg-white px-3 text-sm font-medium text-brand-ink transition-colors hover:bg-brand-wash disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-control border border-brand-ink/15 bg-white px-3 text-sm font-medium text-brand-ink transition-colors hover:bg-brand-wash disabled:opacity-50"
             >
               <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
               New chat
@@ -257,7 +257,7 @@ const Chat = () => {
             <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
               <AnswerSpecimen source={sources?.[0]?.title ?? null} />
               {sources === null ? (
-                <p className="flex items-center gap-2 text-sm text-[#4B5468]">
+                <p className="flex items-center gap-2 text-sm text-brand-ink-muted">
                   <Loader2
                     aria-hidden="true"
                     className="h-4 w-4 animate-spin"
@@ -266,13 +266,13 @@ const Chat = () => {
                 </p>
               ) : noDocuments ? (
                 <>
-                  <p className="max-w-sm text-sm text-[#4B5468]">
+                  <p className="max-w-sm text-sm text-brand-ink-muted">
                     Your knowledge base is empty, so the assistant has nothing
                     to answer from yet.
                   </p>
                   <Link
                     href="/console/knowledge"
-                    className="inline-flex items-center gap-2 rounded-md bg-brand-teal px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-primary-400"
+                    className="inline-flex items-center gap-2 rounded-control bg-brand-teal px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-primary-400"
                   >
                     <BookOpen aria-hidden="true" className="h-4 w-4" />
                     Add documents
@@ -280,7 +280,7 @@ const Chat = () => {
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-[#4B5468]">
+                  <p className="text-sm text-brand-ink-muted">
                     Ask anything your documents cover.
                   </p>
                   <ul className="flex max-w-xl flex-wrap justify-center gap-2">
@@ -289,7 +289,7 @@ const Chat = () => {
                         <button
                           type="button"
                           onClick={() => void send(s)}
-                          className="rounded-full border border-brand-ink/15 px-3 py-1.5 text-xs text-[#4B5468] transition-colors hover:border-primary-700/50 hover:text-brand-ink"
+                          className="rounded-full border border-brand-ink/15 px-3 py-1.5 text-xs text-brand-ink-muted transition-colors hover:border-primary-700/50 hover:text-brand-ink"
                         >
                           {s}
                         </button>
@@ -327,7 +327,7 @@ const Chat = () => {
         >
           <div
             className={clsx(
-              "flex items-end gap-2 rounded-lg border bg-white p-2 transition-colors",
+              "flex items-end gap-2 rounded-box border bg-white p-2 transition-colors",
               "border-brand-ink/15 focus-within:border-primary-700 focus-within:shadow-[0_0_0_3px_rgba(0,171,143,0.22)]",
             )}
           >
@@ -361,14 +361,14 @@ const Chat = () => {
                   void send(input);
                 }
               }}
-              className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-brand-ink placeholder:text-[#6B7385] focus:outline-none focus-visible:outline-none"
+              className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-brand-ink placeholder:text-brand-ink-subtle focus:outline-none focus-visible:outline-none"
             />
             {streaming ? (
               <button
                 type="button"
                 onClick={() => abortRef.current?.abort()}
                 aria-label="Stop answering"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-mist text-brand-ink hover:bg-brand-ink/10"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-mist text-brand-ink hover:bg-brand-ink/10"
               >
                 <Square aria-hidden="true" className="h-4 w-4 fill-current" />
               </button>
@@ -377,13 +377,13 @@ const Chat = () => {
                 type="submit"
                 aria-label="Send"
                 disabled={!input.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-teal text-brand-ink transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-teal text-brand-ink transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ArrowUp aria-hidden="true" className="h-4 w-4" />
               </button>
             )}
           </div>
-          <p className="mt-2 text-center text-[11px] text-[#6B7385]">
+          <p className="mt-2 text-center text-[11px] text-brand-ink-subtle">
             Enter to send · Shift + Enter for a new line · Answers can be wrong;
             check the cited sources.
           </p>

@@ -32,7 +32,7 @@ export const Hero = () => (
       </a>
     </div>
     {/* The first screen's hard fact; the steps are the section linked above. */}
-    <p className="mt-6 font-receipt text-xs text-[#4B5468]">
+    <p className="mt-6 font-receipt text-xs text-brand-ink-muted">
       Set up in 3 steps · Live with 1 line of code
     </p>
   </Section>

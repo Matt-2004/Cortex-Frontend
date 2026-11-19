@@ -45,7 +45,7 @@ export default function ErrorPage({
       <div role="alert" className="w-full max-w-sm text-center">
         <div
           aria-hidden="true"
-          className={`mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl ${iconBg}`}
+          className={`mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-card ${iconBg}`}
         >
           <div className={`${iconColor} [&>svg]:h-8 [&>svg]:w-8`}>{icon}</div>
         </div>
@@ -60,7 +60,7 @@ export default function ErrorPage({
         <div className="mt-8 flex items-center justify-center gap-3">
           <Link
             href={homeHref}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-card border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-50 active:scale-[0.98]"
           >
             <Home aria-hidden="true" className="h-4 w-4" />
             {homeLabel}
@@ -69,7 +69,7 @@ export default function ErrorPage({
             type="button"
             onClick={handleRetry}
             disabled={isRetrying}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-card bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isRetrying ? (
               <Loader2 className="h-4 w-4 animate-spin" />

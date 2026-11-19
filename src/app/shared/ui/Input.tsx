@@ -121,7 +121,7 @@ const AuthInput = forwardRef<
             onBlur?.(e);
           }}
           className={clsx(
-            "w-full rounded-lg border bg-[#E8E9E0] px-4 py-2 text-black transition-colors placeholder:text-sm placeholder:text-gray-400 focus:text-primary focus:ring-primary focus:outline-none focus:placeholder:text-gray-500",
+            "w-full rounded-box border bg-[#E8E9E0] px-4 py-2 text-black transition-colors placeholder:text-sm placeholder:text-gray-400 focus:text-primary focus:ring-primary focus:outline-none focus:placeholder:text-gray-500",
             type === "password" && "pr-11",
             shouldShowError
               ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
@@ -137,7 +137,7 @@ const AuthInput = forwardRef<
             aria-label="Show password"
             aria-pressed={showPassword}
             aria-controls={inputId}
-            className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:text-gray-600 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-teal"
+            className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-badge text-gray-400 hover:text-gray-600 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-teal"
           >
             {showPassword ? (
               <EyeOff aria-hidden="true" className="h-5 w-5" />

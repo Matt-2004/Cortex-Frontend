@@ -19,11 +19,13 @@ import type {
   SubscriptionStatus,
 } from "../types/subscription.types";
 import {
+  Badge,
   EmptyTableRow,
   ErrorState,
   NoAccess,
   Notice,
   Panel,
+  PanelHeader,
   Skeleton,
   SkeletonRows,
   Spinner,
@@ -35,6 +37,7 @@ import {
   tableLook,
   tdLook,
   thLook,
+  type BadgeTone,
 } from "@/app/features/console/ui/consoleUi";
 
 /* After Stripe Checkout the browser comes back before Stripe's webhook has
@@ -259,9 +262,9 @@ const Billing = ({
     status === null || stillBilled || subscription?.hasPaidAccess === true;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {returnedFromCheckout && paid && (
-        <Notice>Payment received. Your plan is active.</Notice>
+        <Notice tone="success">Payment received. Your plan is active.</Notice>
       )}
       {polling && (
         <Notice>
@@ -269,7 +272,7 @@ const Billing = ({
         </Notice>
       )}
       {awaitingPayment && !polling && (
-        <Notice>
+        <Notice tone="warning">
           <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span>
               Activating your plan is taking longer than usual. Your payment is
@@ -279,7 +282,7 @@ const Billing = ({
               type="button"
               onClick={checkAgain}
               disabled={checking}
-              className={clsx(buttonSecondary, "h-9 px-3")}
+              className={clsx(buttonSecondary, "h-8 px-3")}
             >
               {checking && <Spinner />}
               Check again
@@ -291,63 +294,59 @@ const Billing = ({
         <Notice>Only owners can change the plan or payment details.</Notice>
       )}
 
-      <Panel className="p-4 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold">Current plan</h2>
+      <Panel className="overflow-hidden">
+        <section aria-labelledby="current-plan">
+          <PanelHeader
+            id="current-plan"
+            title="Current plan"
+            actions={
+              canOpenPortal && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    redirectTo(PORTAL, () =>
+                      subscriptionsApi.openPortal(organizationId),
+                    )
+                  }
+                  disabled={busy !== null}
+                  className={buttonSecondary}
+                >
+                  {busy === PORTAL && <Spinner />}
+                  Manage billing
+                </button>
+              )
+            }
+          />
+          <div className="p-4">
             {subscription ? (
               <>
-                <p className="mt-3 flex flex-wrap items-center gap-3">
-                  <span className="font-display text-[28px] leading-tight tracking-[-0.01em]">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="text-lg font-semibold">
                     {subscription.plan.name}
                   </span>
                   {status && <StatusBadge status={status} />}
+                  {subscription.plan.priceMinor > 0 && (
+                    <span className={clsx("text-sm", mutedText)}>
+                      {formatPlanPrice(subscription.plan)} / month
+                    </span>
+                  )}
                 </p>
-                {subscription.plan.priceMinor > 0 && (
-                  <p className={clsx("mt-1 text-sm", mutedText)}>
-                    {formatPlanPrice(subscription.plan)} / month
-                  </p>
-                )}
+                <CurrentPlanDetails subscription={subscription} />
               </>
             ) : (
               <>
-                <Skeleton className="mt-4 h-8 w-40" />
-                <Skeleton className="mt-3 h-4 w-24" />
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="mt-4 h-16 w-full" />
               </>
             )}
           </div>
-          {canOpenPortal && (
-            <button
-              type="button"
-              onClick={() =>
-                redirectTo(PORTAL, () =>
-                  subscriptionsApi.openPortal(organizationId),
-                )
-              }
-              disabled={busy !== null}
-              className={clsx(buttonPrimary, "shrink-0")}
-            >
-              {busy === PORTAL && <Spinner />}
-              Manage billing
-            </button>
-          )}
-        </div>
-
-        {subscription && <CurrentPlanDetails subscription={subscription} />}
-        {loading && <Skeleton className="mt-6 h-24 w-full" />}
+        </section>
       </Panel>
 
       <Panel className="overflow-hidden">
-        <section aria-label="Plans">
+        <section aria-labelledby="plans">
+          <PanelHeader id="plans" title="Plans" description="Billed monthly" />
           <table className={tableLook}>
-            <caption className="border-b border-brand-ink/10 px-4 py-3 text-left sm:px-6">
-              <span className="text-sm font-semibold text-brand-ink">
-                Plans
-              </span>
-              <span className={clsx("ml-2 text-sm", mutedText)}>
-                Billed monthly
-              </span>
-            </caption>
             <thead>
               <tr>
                 <th scope="col" className={thLook}>
@@ -412,7 +411,7 @@ const Billing = ({
                     <td
                       className={clsx(
                         tdLook,
-                        "text-right font-receipt text-[13px] whitespace-nowrap tabular-nums",
+                        "text-right whitespace-nowrap tabular-nums",
                       )}
                     >
                       {formatPlanPrice(plan)}
@@ -428,14 +427,7 @@ const Billing = ({
                     </td>
                     <td className={clsx(tdLook, "text-right")}>
                       {current ? (
-                        <span
-                          className={clsx(
-                            "text-xs whitespace-nowrap",
-                            mutedText,
-                          )}
-                        >
-                          Current plan
-                        </span>
+                        <Badge tone="accent">Current</Badge>
                       ) : (
                         canCheckout &&
                         plan.priceMinor > 0 && (
@@ -450,7 +442,7 @@ const Billing = ({
                             }
                             disabled={busy !== null}
                             aria-label={`Choose ${plan.name}`}
-                            className={clsx(buttonSecondary, "h-9 px-3")}
+                            className={clsx(buttonSecondary, "h-8 px-3")}
                           >
                             {busy === plan.code && <Spinner />}
                             Choose
@@ -484,8 +476,7 @@ const PLAN_COLUMNS = [
   "",
 ];
 
-const PLAN_NUMBER_CELL =
-  "hidden text-right font-receipt text-[13px] tabular-nums md:table-cell";
+const PLAN_NUMBER_CELL = "hidden text-right tabular-nums md:table-cell";
 
 /** The dates and the usage of the plan the organization is on. */
 const CurrentPlanDetails = ({
@@ -499,7 +490,7 @@ const CurrentPlanDetails = ({
   return (
     <>
       {(line || (currentPeriodStart && currentPeriodEnd)) && (
-        <dl className="mt-5 flex flex-col gap-1.5 text-sm">
+        <dl className="mt-1 flex flex-col gap-0.5 text-sm">
           {line && (
             <div>
               <dt className="sr-only">Status</dt>
@@ -518,9 +509,9 @@ const CurrentPlanDetails = ({
         </dl>
       )}
 
-      <div className="mt-6 border-t border-dashed border-brand-ink/25 pt-5">
+      <div className="mt-4 border-t border-brand-ink/10 pt-4">
         <h3 className="text-sm font-semibold">Usage</h3>
-        <dl className="mt-4 grid gap-5 sm:grid-cols-3 sm:gap-6">
+        <dl className="mt-3 grid gap-4 sm:grid-cols-3 sm:gap-6">
           <UsageMeter
             label="AI answers this period"
             used={usage.aiAnswersUsed}
@@ -566,7 +557,7 @@ const UsageMeter = ({
       <dd className="mt-1">
         {limit > 0 ? (
           <>
-            <span className="font-receipt text-[13px] tabular-nums">
+            <span className="text-sm font-medium tabular-nums">
               {format(used)} / {format(limit)}
             </span>
             <span
@@ -576,7 +567,7 @@ const UsageMeter = ({
               <span
                 className={clsx(
                   "block h-full rounded-full",
-                  full ? "bg-[#D92D20]" : "bg-brand-teal",
+                  full ? "bg-status-error" : "bg-brand-teal",
                 )}
                 style={{ width: `${share * 100}%` }}
               />
@@ -592,18 +583,14 @@ const UsageMeter = ({
   );
 };
 
-/** Active filled, Past due in the warning red, the rest outlined. */
+const STATUS_TONES: Record<SubscriptionStatus, BadgeTone> = {
+  Active: "success",
+  Pending: "warning",
+  PastDue: "danger",
+  Cancelled: "neutral",
+  Expired: "neutral",
+};
+
 const StatusBadge = ({ status }: { status: SubscriptionStatus }) => (
-  <span
-    className={clsx(
-      "inline-flex h-6 items-center rounded-[4px] px-2 text-xs font-medium whitespace-nowrap",
-      status === "Active" && "bg-primary-700 text-white",
-      status === "PastDue" && "bg-[#FEF3F2] text-[#B42318]",
-      status !== "Active" &&
-        status !== "PastDue" &&
-        "border border-brand-ink/20 text-[#4B5468]",
-    )}
-  >
-    {STATUS_LABELS[status]}
-  </span>
+  <Badge tone={STATUS_TONES[status]}>{STATUS_LABELS[status]}</Badge>
 );

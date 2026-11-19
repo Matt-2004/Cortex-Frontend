@@ -28,12 +28,18 @@ import {
 } from "@/app/features/console/ui/ConsoleShell";
 import { displayName } from "./MembersPanel";
 import { organizationPath } from "./OrganizationsHome";
+import { OrganizationBreadcrumb } from "./Breadcrumb";
 import {
   Avatar,
+  Badge,
+  CopyValue,
+  DetailList,
+  DetailRow,
   ErrorState,
   Modal,
   Notice,
   Panel,
+  PanelHeader,
   RoleBadge,
   Skeleton,
   Spinner,
@@ -45,48 +51,6 @@ import {
 } from "@/app/features/console/ui/consoleUi";
 
 const ORGANIZATIONS_PATH = "/console/organizations";
-
-const Breadcrumb = ({
-  organization,
-  current,
-}: {
-  organization?: Organization;
-  current?: string;
-}) => (
-  <nav aria-label="Breadcrumb">
-    <ol className="flex flex-wrap items-center gap-2">
-      <li>
-        <Link
-          href={ORGANIZATIONS_PATH}
-          className="underline decoration-current/30 underline-offset-4 transition-colors hover:text-brand-ink"
-        >
-          Organizations
-        </Link>
-      </li>
-      {organization && (
-        <>
-          <li aria-hidden="true">/</li>
-          <li>
-            <Link
-              href={organizationPath(organization.id)}
-              className="underline decoration-current/30 underline-offset-4 transition-colors hover:text-brand-ink"
-            >
-              {organization.name}
-            </Link>
-          </li>
-        </>
-      )}
-      {current && (
-        <>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="truncate text-brand-ink">
-            {current}
-          </li>
-        </>
-      )}
-    </ol>
-  </nav>
-);
 
 /** /console/organizations/{organizationId}/members/{memberUserId} */
 export const MemberDetail = ({
@@ -137,8 +101,8 @@ const Member = ({
       resource.error.status === 404 || resource.error.status === 403;
     return (
       <>
-        <PageHeader breadcrumb={<Breadcrumb />} title="Member" />
-        <Container className="py-8 sm:py-10">
+        <PageHeader breadcrumb={<OrganizationBreadcrumb />} title="Member" />
+        <Container className="py-6">
           <ErrorState
             title={
               missing
@@ -175,8 +139,13 @@ const Member = ({
     <>
       <PageHeader
         breadcrumb={
-          <Breadcrumb
-            organization={organization}
+          <OrganizationBreadcrumb
+            trail={[
+              {
+                label: organization.name,
+                href: organizationPath(organization.id),
+              },
+            ]}
             current={displayName(member)}
           />
         }
@@ -185,24 +154,34 @@ const Member = ({
           <Avatar
             name={displayName(member)}
             src={member.avatarUrl}
-            className="h-14 w-14 bg-white text-lg sm:h-16 sm:w-16"
+            className="h-10 w-10 border border-brand-ink/10 bg-white text-sm"
           />
         }
         description={
-          <span className="flex flex-wrap items-center gap-3">
-            <span>{member.email}</span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="min-w-0 truncate">{member.email}</span>
             <RoleBadge role={member.role} />
-            {self && (
-              <span className="rounded-[4px] bg-white px-1.5 py-0.5 text-[11px] font-medium text-primary-800">
-                You
-              </span>
-            )}
+            {self && <Badge>You</Badge>}
           </span>
         }
       />
 
-      <Container className="grid items-start gap-6 py-8 sm:py-10 lg:grid-cols-12 lg:gap-8">
-        <div className="flex flex-col gap-6 lg:col-span-7">
+      <Container className="py-6">
+        <div className="flex max-w-3xl flex-col gap-4">
+          <Panel className="overflow-hidden">
+            <section aria-labelledby="member-details">
+              <PanelHeader id="member-details" title="Details" />
+              <DetailList>
+                <DetailRow label="Joined">
+                  {formatDate(member.joinedAt)}
+                </DetailRow>
+                <DetailRow label="User ID">
+                  <CopyValue value={member.userId} label="user ID" />
+                </DetailRow>
+              </DetailList>
+            </section>
+          </Panel>
+
           <RolePanel
             key={member.role}
             organization={organization}
@@ -211,6 +190,7 @@ const Member = ({
             self={self}
             onSaved={reload}
           />
+
           {(editable || self) && (
             <RemovePanel
               organization={organization}
@@ -219,37 +199,10 @@ const Member = ({
             />
           )}
         </div>
-
-        <Panel className="p-5 sm:p-6 lg:col-span-5">
-          <h2 className="text-base font-semibold">Details</h2>
-          <dl className="mt-4 divide-y divide-brand-ink/10 text-sm">
-            <Detail label="Email">{member.email}</Detail>
-            <Detail label="Organization">{organization.name}</Detail>
-            <Detail label="Joined">{formatDate(member.joinedAt)}</Detail>
-            <Detail label="User ID">
-              <span className="font-receipt text-[13px] break-all">
-                {member.userId}
-              </span>
-            </Detail>
-          </dl>
-        </Panel>
       </Container>
     </>
   );
 };
-
-const Detail = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <div className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
-    <dt className={clsx("text-xs", mutedText)}>{label}</dt>
-    <dd className="min-w-0">{children}</dd>
-  </div>
-);
 
 /** Pick a role from cards that say what each one can do, then save. */
 const RolePanel = ({
@@ -298,102 +251,97 @@ const RolePanel = ({
   };
 
   return (
-    <Panel className="p-5 sm:p-6">
-      <h2 className="text-base font-semibold">Role</h2>
-      <p className={clsx("mt-1 text-sm", mutedText)}>
-        What {self ? "you" : displayName(member)} can do in {organization.name}.
-      </p>
+    <Panel className="overflow-hidden">
+      <section aria-labelledby="member-role">
+        <PanelHeader
+          id="member-role"
+          title="Role"
+          description={`What ${self ? "you" : displayName(member)} can do in this organization.`}
+        />
 
-      {!editable && (
-        <div className="mt-5">
-          <Notice>
-            {member.role === OWNER
-              ? "Only owners can change an owner's role."
-              : "Only owners and admins can change roles."}
-          </Notice>
-        </div>
-      )}
+        {!editable && (
+          <div className="px-4 pt-4">
+            <Notice>
+              {member.role === OWNER
+                ? "Only owners can change an owner's role."
+                : "Only owners and admins can change roles."}
+            </Notice>
+          </div>
+        )}
 
-      <form onSubmit={submit} className="mt-5">
-        <fieldset disabled={!editable || saving} className="min-w-0">
-          <legend className="sr-only">Role</legend>
-          <div className="flex flex-col gap-2">
-            {ORGANIZATION_ROLES.map((entry) => {
-              const checked = role === entry.value;
-              // Admins can't make anyone an owner.
-              const offLimits = editable && !allowed.includes(entry.value);
-              return (
-                <label
-                  key={entry.value}
-                  className={clsx(
-                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors duration-150",
-                    "has-[:disabled]:cursor-default has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-brand-teal/30",
-                    checked
-                      ? "border-primary-700 bg-brand-wash/60"
-                      : "border-brand-ink/15 hover:border-brand-ink/30",
-                    offLimits && "opacity-55",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="role"
-                    value={entry.value}
-                    checked={checked}
-                    disabled={offLimits}
-                    onChange={() => setRole(entry.value)}
-                    className="mt-1 h-4 w-4 accent-primary-700"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium">
-                      {entry.label}
-                      {entry.value === member.role && (
-                        <span
-                          className={clsx(
-                            "ml-2 text-xs font-normal",
-                            mutedText,
-                          )}
-                        >
-                          current
-                        </span>
-                      )}
+        <form onSubmit={submit}>
+          <fieldset disabled={!editable || saving} className="min-w-0">
+            <legend className="sr-only">Role</legend>
+            <div className="flex flex-col gap-2 p-4">
+              {ORGANIZATION_ROLES.map((entry) => {
+                const checked = role === entry.value;
+                // Admins can't make anyone an owner.
+                const offLimits = editable && !allowed.includes(entry.value);
+                return (
+                  <label
+                    key={entry.value}
+                    className={clsx(
+                      "flex cursor-pointer items-center gap-3 rounded-box border px-3 py-2.5 transition-colors duration-150",
+                      "has-[:disabled]:cursor-default has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-brand-teal/30",
+                      checked
+                        ? "border-brand-teal bg-brand-teal/5"
+                        : "border-brand-ink/15 hover:border-brand-ink/30",
+                      offLimits && "opacity-55",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={entry.value}
+                      checked={checked}
+                      disabled={offLimits}
+                      onChange={() => setRole(entry.value)}
+                      className="h-4 w-4 shrink-0 accent-primary-700"
+                    />
+                    <span className="w-16 shrink-0">
+                      <RoleBadge role={entry.value} />
                     </span>
-                    <span className={clsx("block text-xs", mutedText)}>
+                    <span className={clsx("min-w-0 flex-1 text-sm", mutedText)}>
                       {entry.description}
                     </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-
-          {editable && allowed.length < ORGANIZATION_ROLES.length && (
-            <p className={clsx("mt-3 text-xs", mutedText)}>
-              Only owners can make someone an owner.
-            </p>
-          )}
-
-          {editable && (
-            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setRole(member.role)}
-                disabled={!changed || saving}
-                className={buttonSecondary}
-              >
-                Discard
-              </button>
-              <button
-                type="submit"
-                disabled={!changed || saving}
-                className={buttonPrimary}
-              >
-                {saving && <Spinner />}
-                {saving ? "Saving…" : "Save role"}
-              </button>
+                    {entry.value === member.role && (
+                      <span className={clsx("shrink-0 text-xs", mutedText)}>
+                        Current
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+              {editable && allowed.length < ORGANIZATION_ROLES.length && (
+                <p className={clsx("text-xs", mutedText)}>
+                  Only owners can make someone an owner.
+                </p>
+              )}
             </div>
-          )}
-        </fieldset>
-      </form>
+
+            {editable && (
+              <div className="flex flex-col-reverse gap-2 border-t border-brand-ink/10 bg-brand-mist/50 px-4 py-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRole(member.role)}
+                  disabled={!changed || saving}
+                  className={buttonSecondary}
+                >
+                  Discard
+                </button>
+                <button
+                  type="submit"
+                  disabled={!changed || saving}
+                  className={buttonPrimary}
+                >
+                  {saving && <Spinner />}
+                  {saving ? "Saving…" : "Save role"}
+                </button>
+              </div>
+            )}
+          </fieldset>
+        </form>
+      </section>
     </Panel>
   );
 };
@@ -436,15 +384,15 @@ const RemovePanel = ({
   };
 
   return (
-    <Panel className="flex flex-col gap-4 border-[#D92D20]/25 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+    <Panel className="flex flex-col gap-3 border-status-error-border p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h2 className="text-base font-semibold">
+        <h2 className="text-sm font-semibold">
           {self ? "Leave organization" : "Remove from organization"}
         </h2>
         <p className={clsx("mt-1 text-sm", mutedText)}>
           {self
-            ? `You will lose access to ${organization.name}.`
-            : `${displayName(member)} will lose access to ${organization.name}.`}
+            ? "You will lose access to this organization."
+            : `${displayName(member)} will lose access to this organization.`}
         </p>
       </div>
       <button
@@ -467,7 +415,7 @@ const RemovePanel = ({
             : `${displayName(member)} can be added again later.`
         }
       >
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => setConfirming(false)}
@@ -495,20 +443,22 @@ const RemovePanel = ({
 export const MemberDetailSkeleton = () => (
   <div role="status" aria-label="Loading member">
     <div className="border-b border-brand-ink/10 bg-brand-wash">
-      <Container className="pt-8 pb-8 sm:pt-10 sm:pb-10">
-        <Skeleton className="mb-4 h-4 w-56" />
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-14 w-14 rounded-full sm:h-16 sm:w-16" />
+      <Container className="py-5 sm:py-6">
+        <Skeleton className="mb-2 h-3 w-56" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
           <div>
-            <Skeleton className="h-9 w-56 max-w-full" />
-            <Skeleton className="mt-3 h-4 w-40" />
+            <Skeleton className="h-7 w-56 max-w-full" />
+            <Skeleton className="mt-2 h-4 w-40" />
           </div>
         </div>
       </Container>
     </div>
-    <Container className="grid gap-6 py-8 sm:py-10 lg:grid-cols-12 lg:gap-8">
-      <Skeleton className="h-72 rounded-xl lg:col-span-7" />
-      <Skeleton className="h-56 rounded-xl lg:col-span-5" />
+    <Container className="py-6">
+      <div className="flex max-w-3xl flex-col gap-4">
+        <Skeleton className="h-44 rounded-card" />
+        <Skeleton className="h-56 rounded-card" />
+      </div>
     </Container>
   </div>
 );

@@ -207,7 +207,7 @@ const Register = () => {
             />
             <label
               htmlFor="policy"
-              className="cursor-pointer text-sm text-[#4B5468]"
+              className="cursor-pointer text-sm text-brand-ink-muted"
             >
               I agree to the Terms of Service and Privacy Policy
             </label>

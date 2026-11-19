@@ -13,7 +13,6 @@ import { useResource } from "@/app/features/console/hooks/useResource";
 import {
   canManage,
   ORGANIZATION_LIMITS,
-  ORGANIZATION_ROLES,
   type Organization,
   type OrganizationMember,
 } from "../types/organization.types";
@@ -30,8 +29,8 @@ import {
   Field,
   Modal,
   Panel,
+  PanelHeader,
   RoleBadge,
-  SideNote,
   Skeleton,
   SkeletonRows,
   Spinner,
@@ -64,9 +63,8 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /**
  * /console/organizations — every organization you belong to, and a way to
  * create one. The table is the page: the ones you manage open on click and
- * show who is in them; the ones where you are only a member are listed too,
- * unlinked, so the list is complete. Beside it, unboxed, sits what explains
- * the "Your role" column.
+ * show how many people are in them; the ones where you are only a member are
+ * listed too, unlinked and marked "View only", so the list is complete.
  */
 export const OrganizationsHome = () => (
   <SignedIn
@@ -124,7 +122,7 @@ const Organizations = () => {
       />
 
       {resource.status === "error" ? (
-        <Container className="py-8 sm:py-10">
+        <Container className="py-6">
           <ErrorState
             title="Your organizations could not be loaded"
             message={resource.error.message}
@@ -134,7 +132,7 @@ const Organizations = () => {
       ) : resource.status === "ready" &&
         resource.data.length > 0 &&
         !resource.data.some((o) => canManage(o.role)) ? (
-        <Container className="py-8 sm:py-10">
+        <Container className="py-6">
           <NoAccess
             title="Organizations are managed by owners and admins"
             message="You are a member of your organizations, so there is nothing to manage here. Ask an owner if you need access."
@@ -170,32 +168,10 @@ const Organizations = () => {
 type TableState =
   { status: "loading" } | { status: "ready"; data: Organization[] };
 
-/**
- * The table, and the note beside it once the content column is wide enough
- * (a container query: the sidebar takes 256px of the viewport from `lg` up).
- */
 const OrganizationsLayout = ({ state }: { state: TableState }) => (
-  <Container className="pt-8 pb-12 sm:pt-10">
+  <Container className="py-6">
     <div className="@container">
-      <div className="grid items-start gap-x-12 gap-y-10 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)]">
-        <OrganizationsTable state={state} />
-        <aside aria-label="About roles" className="min-w-0">
-          <SideNote title="What each role can do">
-            <dl className="mt-2 divide-y divide-brand-ink/10">
-              {ORGANIZATION_ROLES.map((role) => (
-                <div key={role.value} className="flex items-start gap-3 py-3">
-                  <dt className="w-[4.5rem] shrink-0">
-                    <RoleBadge role={role.value} />
-                  </dt>
-                  <dd className={clsx("text-sm", mutedText)}>
-                    {role.description}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </SideNote>
-        </aside>
-      </div>
+      <OrganizationsTable state={state} />
     </div>
   </Container>
 );
@@ -233,11 +209,9 @@ const usePeople = (organizationIds: string[]) => {
   return people;
 };
 
-const FACES = 3;
-
-/** Up to three faces, overlapped, and the head count. */
+/** The head count, or "—" when it could not be read. */
 const PeopleCell = ({ members }: { members: People[string] | undefined }) => {
-  if (members === undefined) return <Skeleton className="h-4 w-16" />;
+  if (members === undefined) return <Skeleton className="h-4 w-8" />;
   if (members === "error") {
     return (
       <span className={mutedText}>
@@ -247,34 +221,17 @@ const PeopleCell = ({ members }: { members: People[string] | undefined }) => {
     );
   }
   return (
-    <span className="flex items-center gap-2.5">
-      <span className="flex -space-x-1">
-        {members.slice(0, FACES).map((member, index) => (
-          // Earlier faces sit on top, so their initials stay whole.
-          <span
-            key={member.userId}
-            className="relative flex"
-            style={{ zIndex: FACES - index }}
-          >
-            <Avatar
-              name={member.name || member.email}
-              src={member.avatarUrl}
-              className="h-7 w-7 text-[10px] ring-2 ring-white"
-            />
-          </span>
-        ))}
-      </span>
-      <span className={clsx("whitespace-nowrap tabular-nums", mutedText)}>
-        {members.length.toLocaleString()}
-        <span className="sr-only">
-          {members.length === 1 ? " person" : " people"}
-        </span>
-      </span>
-    </span>
+    <span className="tabular-nums">{members.length.toLocaleString()}</span>
   );
 };
 
-const COLUMNS = ["", "hidden @2xl:table-cell", "", "hidden sm:table-cell", ""];
+const COLUMNS = [
+  "",
+  "hidden @2xl:table-cell",
+  "",
+  "hidden sm:table-cell",
+  "w-10",
+];
 
 /** Your organizations. Empty and loading keep the same columns. */
 const OrganizationsTable = ({ state }: { state: TableState }) => {
@@ -285,6 +242,10 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
 
   return (
     <Panel className="min-w-0 overflow-hidden">
+      <PanelHeader
+        title="Your organizations"
+        count={state.status === "ready" ? organizations.length : null}
+      />
       <table className={tableLook}>
         <caption className="sr-only">Your organizations</caption>
         <thead>
@@ -292,13 +253,19 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
             <th scope="col" className={clsx(thLook, "w-full")}>
               Organization
             </th>
-            <th scope="col" className={clsx(thLook, "hidden @2xl:table-cell")}>
-              People
+            <th
+              scope="col"
+              className={clsx(thLook, "hidden w-24 text-right @2xl:table-cell")}
+            >
+              Members
             </th>
-            <th scope="col" className={thLook}>
+            <th scope="col" className={clsx(thLook, "w-28 sm:w-44")}>
               Your role
             </th>
-            <th scope="col" className={clsx(thLook, "hidden sm:table-cell")}>
+            <th
+              scope="col"
+              className={clsx(thLook, "hidden w-36 sm:table-cell")}
+            >
               Created
             </th>
             <th scope="col" className={clsx(thLook, "w-10")}>
@@ -329,7 +296,7 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
                   "console-row-in",
                   rowLook,
                   manageable &&
-                    "group relative hover:bg-brand-wash/50 has-[a:focus-visible]:bg-brand-wash/50",
+                    "group relative cursor-pointer hover:bg-brand-wash/60 has-[a:focus-visible]:bg-brand-wash/60",
                 )}
               >
                 {/* max-w-0 lets the name truncate instead of widening the table. */}
@@ -339,10 +306,6 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
                       name={organization.name}
                       src={organization.logoUrl}
                       shape="square"
-                      className={clsx(
-                        "h-9 w-9 text-xs",
-                        !manageable && "bg-brand-mist text-[#4B5468]",
-                      )}
                     />
                     <div className="min-w-0">
                       {manageable ? (
@@ -359,34 +322,37 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
                           {organization.name}
                         </p>
                       )}
-                      {manageable ? (
-                        <p
-                          translate="no"
-                          className={clsx(
-                            "truncate font-receipt text-xs",
-                            mutedText,
-                          )}
-                        >
-                          {organization.slug}
-                        </p>
-                      ) : (
-                        <p className={clsx("text-xs", mutedText)}>
-                          Managed by its owners and admins
-                        </p>
-                      )}
+                      <p
+                        translate="no"
+                        className={clsx("truncate text-xs", mutedText)}
+                      >
+                        {organization.slug}
+                      </p>
                     </div>
                   </div>
                 </td>
-                <td className={clsx(tdLook, "hidden @2xl:table-cell")}>
-                  {manageable &&
-                    (index < PEOPLE_ROWS ? (
-                      <PeopleCell members={people[organization.id]} />
-                    ) : (
-                      <PeopleCell members="error" />
-                    ))}
+                <td
+                  className={clsx(tdLook, "hidden text-right @2xl:table-cell")}
+                >
+                  {manageable && index < PEOPLE_ROWS ? (
+                    <PeopleCell members={people[organization.id]} />
+                  ) : (
+                    // Members can't list who else is in it; neither can we
+                    // beyond the first rows.
+                    <PeopleCell members="error" />
+                  )}
                 </td>
                 <td className={tdLook}>
-                  <RoleBadge role={organization.role} />
+                  <span className="flex items-center gap-2 whitespace-nowrap">
+                    <RoleBadge role={organization.role} />
+                    {!manageable && (
+                      <span
+                        className={clsx("hidden text-xs sm:inline", mutedText)}
+                      >
+                        View only
+                      </span>
+                    )}
+                  </span>
                 </td>
                 <td
                   className={clsx(
@@ -397,13 +363,13 @@ const OrganizationsTable = ({ state }: { state: TableState }) => {
                 >
                   {formatDate(organization.createdAt)}
                 </td>
-                <td className={clsx(tdLook, "w-10")}>
-                  {manageable && (
+                <td className={clsx(tdLook, "w-10 pl-0")}>
+                  {manageable ? (
                     <ChevronRight
                       aria-hidden="true"
-                      className="h-4 w-4 text-[#8B93A8] transition-[translate,color] duration-150 group-hover:translate-x-[3px] group-hover:text-primary-700 motion-reduce:transition-none"
+                      className="ml-auto h-4 w-4 text-brand-ink-faint transition-[translate,color] duration-150 group-hover:translate-x-[3px] group-hover:text-primary-700 motion-reduce:transition-none"
                     />
-                  )}
+                  ) : null}
                 </td>
               </tr>
             );
@@ -494,7 +460,7 @@ const CreateOrganizationModal = ({
       title="New organization"
       description="Name it after your business. You can invite your team next."
     >
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <Field label="Name" htmlFor="organization-name" error={errors.name}>
           <input
             id="organization-name"
@@ -566,7 +532,7 @@ const CreateOrganizationModal = ({
           </Field>
         )}
 
-        <div className="mt-1 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={close}

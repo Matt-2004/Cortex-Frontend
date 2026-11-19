@@ -53,7 +53,7 @@ export const GoogleSignInButton = ({
         signIn("google", { callbackUrl }).catch(() => setIsRedirecting(false));
       }}
       className={clsx(
-        "group relative flex h-11 w-full items-center justify-center gap-3 rounded-md px-4",
+        "group relative flex h-11 w-full items-center justify-center gap-3 rounded-control px-4",
         "border border-[#DADCE0] bg-white text-sm font-medium text-[#1F1F1F]",
         "transition-[background-color,box-shadow] duration-150",
         "hover:bg-[#F7F8F8] hover:shadow-[0_1px_3px_rgba(0,0,0,0.25)]",

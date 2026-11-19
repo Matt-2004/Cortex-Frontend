@@ -43,8 +43,8 @@ export const SectionNav = ({ links }: { links: NavLink[] }) => {
   }, [links]);
 
   return (
-    <nav aria-label="Main" className="hidden md:block">
-      <ul className="flex items-center gap-6">
+    <nav aria-label="Main" className="hidden lg:block">
+      <ul className="flex items-center gap-5 xl:gap-6">
         {links.map(({ href, label }) => {
           const active = current === href;
           return (
@@ -58,7 +58,7 @@ export const SectionNav = ({ links }: { links: NavLink[] }) => {
                   "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-brand-teal after:transition-opacity after:duration-150",
                   active
                     ? "text-brand-ink after:opacity-100"
-                    : "text-[#4B5468] after:opacity-0",
+                    : "text-brand-ink-muted after:opacity-0",
                 )}
               >
                 {label}

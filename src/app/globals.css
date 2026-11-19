@@ -1,6 +1,31 @@
 @import "tailwindcss";
 
 :root {
+  /* Corner radii, smallest to largest. Change them here only. */
+  --corner-badge: 2px; /* badges, tags, small chips, skeleton bars */
+  --corner-control: 4px; /* buttons, inputs, selects, icon buttons */
+  --corner-box: 6px; /* inner boxes, chat bubbles, small cards */
+  --corner-card: 10px; /* panels, side notes, modals, large cards */
+
+  /* Status colours (toasts): a light surface, its border, the icon colour
+     and dark text (AA on the surface). */
+  --status-success-bg: #dcfae6;
+  --status-success-border: #abefc6;
+  --status-success: #079455;
+  --status-success-text: #074d31;
+  --status-error-bg: #fee4e2;
+  --status-error-border: #fecdca;
+  --status-error: #d92d20;
+  --status-error-text: #7a271a;
+  --status-warning-bg: #fef0c7;
+  --status-warning-border: #fedf89;
+  --status-warning: #dc6803;
+  --status-warning-text: #7a2e0e;
+  --status-info-bg: #d1e9ff;
+  --status-info-border: #b2ddff;
+  --status-info: #1570ef;
+  --status-info-text: #194185;
+
   /* Cortex brand */
   --brand-ink: #12172a;
   --brand-ink-raised: #1a2036;
@@ -12,6 +37,23 @@
   --brand-wash: #f3f4f6;
   /* Editor's red pen: used only for corrections on the landing page. */
   --brand-pen: #c8401c;
+
+  /* Secondary text greys, darkest to lightest. Use these instead of hex
+     values: muted for supporting copy, subtle for icons and hints, faint
+     for disabled or superseded text. */
+  --brand-ink-muted: #4b5468;
+  --brand-ink-subtle: #6b7385;
+  --brand-ink-faint: #8b93a8;
+
+  /* Weight of every heading (font-heading). */
+  --heading-weight: 700;
+
+  /* Elevation: things that float on the page (shadow-float), and the one
+     in focus lifted a little higher (shadow-float-raised). */
+  --elevation-float:
+    0 1px 2px rgba(18, 23, 42, 0.06), 0 20px 44px -20px rgba(18, 23, 42, 0.3);
+  --elevation-float-raised:
+    0 2px 4px rgba(18, 23, 42, 0.08), 0 30px 60px -24px rgba(18, 23, 42, 0.4);
 
   --primary-active: #008f78;
   --background: #f4f6f8;
@@ -36,6 +78,38 @@
 }
 
 @theme inline {
+  /* Corner radii. One source: the --corner-* values in :root. Use the
+     semantic classes (rounded-badge / -control / -box / -card); Tailwind's
+     own scale points at the same values so stray classes still match. */
+  --color-status-success: var(--status-success);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-success-border: var(--status-success-border);
+  --color-status-success-text: var(--status-success-text);
+  --color-status-error: var(--status-error);
+  --color-status-error-bg: var(--status-error-bg);
+  --color-status-error-border: var(--status-error-border);
+  --color-status-error-text: var(--status-error-text);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-border: var(--status-warning-border);
+  --color-status-warning-text: var(--status-warning-text);
+  --color-status-info: var(--status-info);
+  --color-status-info-bg: var(--status-info-bg);
+  --color-status-info-border: var(--status-info-border);
+  --color-status-info-text: var(--status-info-text);
+  --radius-badge: var(--corner-badge);
+  --radius-control: var(--corner-control);
+  --radius-box: var(--corner-box);
+  --radius-card: var(--corner-card);
+  --radius: var(--corner-badge);
+  --radius-xs: var(--corner-badge);
+  --radius-sm: var(--corner-badge);
+  --radius-md: var(--corner-control);
+  --radius-lg: var(--corner-box);
+  --radius-xl: var(--corner-card);
+  --radius-2xl: var(--corner-card);
+  --radius-3xl: var(--corner-card);
+  --radius-4xl: var(--corner-card);
   --color-primary-50: var(--main-color-50);
   --color-primary-100: var(--main-color-100);
   --color-primary-200: var(--main-color-200);
@@ -52,7 +126,9 @@
   --color-background: var(--background);
   --color-primary: var(--main-color);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
   --font-serif: var(--font-montserrat);
   --color-primary-background: var(--primary-background);
   --color-input-background: var(--input-bg);
@@ -64,9 +140,16 @@
   --color-brand-teal: var(--brand-teal);
   --color-brand-wash: var(--brand-wash);
   --color-brand-pen: var(--brand-pen);
+  --color-brand-ink-muted: var(--brand-ink-muted);
+  --color-brand-ink-subtle: var(--brand-ink-subtle);
+  --color-brand-ink-faint: var(--brand-ink-faint);
+  --font-weight-heading: var(--heading-weight);
+  --shadow-float: var(--elevation-float);
+  --shadow-float-raised: var(--elevation-float-raised);
   /* Landing page only: the variables are set on the page wrapper (see landing/fonts.ts). */
-  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
-  --font-receipt: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-roboto), ui-sans-serif, system-ui, sans-serif;
+  --font-receipt:
+    var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 .main-color-gradient {
@@ -339,7 +422,8 @@ nextjs-portal {
 /* Highlighter over a phrase, the way you'd mark a passage in a source. */
 .landing-mark {
   color: inherit;
-  background: linear-gradient(rgba(0, 171, 143, 0.3), rgba(0, 171, 143, 0.3)) no-repeat 0 62% / 100% 76%;
+  background: linear-gradient(rgba(0, 171, 143, 0.3), rgba(0, 171, 143, 0.3))
+    no-repeat 0 62% / 100% 76%;
   padding: 0 0.08em;
   margin: 0 -0.08em;
   -webkit-box-decoration-break: clone;
@@ -619,12 +703,6 @@ nextjs-portal {
     animation: demo-fill var(--fill-ms, 12s) linear forwards;
   }
 
-  /* The line under a demo, filling for as long as the demo plays. */
-  .demo-clock {
-    transform: scaleX(0);
-    animation: demo-clock var(--fill-ms, 5s) linear forwards;
-  }
-
   /* The line between two setup steps, filling as the first one finishes. */
   .demo-rail {
     transform: scaleY(0);
@@ -674,16 +752,26 @@ nextjs-portal {
 }
 /* Dot paper */
 .landing-bg-dots {
-  background-image: radial-gradient(rgba(18, 23, 42, 0.16) 1px, transparent 1.6px);
+  background-image: radial-gradient(
+    rgba(18, 23, 42, 0.16) 1px,
+    transparent 1.6px
+  );
   background-size: 20px 20px;
 }
 .landing-bg-dots-light {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1.6px);
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.2) 1px,
+    transparent 1.6px
+  );
   background-size: 20px 20px;
 }
 /* Ruled lines, like a page of a policy document */
 .landing-bg-ruled {
-  background-image: linear-gradient(to bottom, transparent 27px, rgba(18, 23, 42, 0.08) 27px);
+  background-image: linear-gradient(
+    to bottom,
+    transparent 27px,
+    rgba(18, 23, 42, 0.08) 27px
+  );
   background-size: 100% 28px;
 }
 /* Shelf-like grid, for the product catalog */
@@ -700,8 +788,17 @@ nextjs-portal {
   }
 }
 
-@keyframes demo-clock {
-  to {
-    transform: scaleX(1);
+/* ─── Toast ───────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast-in {
+    animation: toast-in 220ms var(--ease-settle, cubic-bezier(0.2, 0.7, 0.2, 1))
+      both;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
   }
 }

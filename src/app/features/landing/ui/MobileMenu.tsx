@@ -22,7 +22,7 @@ export const MobileMenu = ({ links }: { links: MenuLink[] }) => {
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-9 items-center rounded-md border border-brand-ink/15 px-3 font-medium text-brand-ink transition-colors hover:bg-brand-mist"
+        className="inline-flex h-9 items-center rounded-control border border-brand-ink/15 px-3 font-medium text-brand-ink transition-colors hover:bg-brand-mist"
       >
         {open ? "Close" : "Menu"}
       </button>

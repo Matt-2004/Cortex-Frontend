@@ -35,7 +35,7 @@ function Button({
       aria-busy={loading || undefined}
       className={clsx(
         width === "full" ? "min-w-full" : "min-w-[50%]",
-        "bg-primary text-white flex w-full items-center justify-center gap-3 rounded-lg px-4 py-2.5 text-base font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-200 ease-out",
+        "bg-primary text-white flex w-full items-center justify-center gap-3 rounded-box px-4 py-2.5 text-base font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-200 ease-out",
         "hover:cursor-pointer hover:bg-primary-600 hover:shadow-[0_2px_6px_rgba(0,0,0,0.12)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2",
         "active:translate-y-0 active:scale-[0.99]",

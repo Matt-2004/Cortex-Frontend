@@ -110,13 +110,27 @@ Defined once in `organization.types.ts`; the backend must enforce the same rules
 Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 (actions; the logo's centre dot), `brand-wash #f3f4f6` (neutral band),
 `brand-mist #f4f6f8`, `primary-50…900`
-(`primary-700 #007362`). Fonts: Inter (body, brand), Newsreader
+(`primary-700 #007362`). Fonts: Inter (body, brand), Roboto
 (`font-display`, headings), IBM Plex Mono (`font-receipt`, labels/numbers).
 
 - Colour: neutral surfaces (white and the grey wash) with the logo teal as the
   only accent, for what acts or highlights. The landing page's closing band
   (`primary-700`) is the one coloured surface. **Navy is never a background**
   (text only). Auth pages are white.
+- Text greys are tokens, never hex: `brand-ink-muted` (#4b5468, supporting
+  copy), `brand-ink-subtle` (#6b7385, icons/hints), `brand-ink-faint`
+  (#8b93a8, disabled/superseded). Headings use `font-heading` (bold, from
+  `--heading-weight`). Any new repeated colour/size goes in `globals.css` as
+  a variable, not as an arbitrary `[#hex]` value.
+- Elevation: `shadow-float` / `shadow-float-raised` (`--elevation-*`). Landing
+  demos have no frame box; their cards float on the section with `shadow-float`.
+- Corners: four tokens in `:root` (`--corner-badge` 2px, `--corner-control`
+  4px, `--corner-box` 6px, `--corner-card` 10px), used as `rounded-badge`,
+  `rounded-control`, `rounded-box`, `rounded-card`. No arbitrary
+  `rounded-[Npx]`; change a radius in `globals.css` only.
+- Toasts (`features/toast`) are the exception to the teal-only rule: a light
+  status tint, coloured icon and dark text (`--status-<name>-bg|-border|-text`
+  and `--status-<name>` for the icon; classes `bg-status-success-bg` etc.).
 - One action colour: teal button with navy text (`primaryButtonLook`).
 - One primary button per action — never two buttons for the same thing.
 - Progressive disclosure: forms open on demand (dialogs), not all at once.
@@ -136,13 +150,13 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 - The hero headline names the product category in 8 words or fewer ("An AI
   assistant for your website"); the first screen carries one hard fact.
 - From `lg`, each section fills the screen under the header (capped at 780px).
-  The header marks the section being read (`SectionNav`).
+  The header holds only Console and Start free (no section links, no Sign in).
 - Motion: section text and frame rise in, staggered, once, on scroll
   (`Reveal`); curves are `--ease-settle` (arrivals) and `--ease-travel`
   (things that move), no overshoot.
 - Visuals are demos, not stills (`demos.tsx`, `useTimeline`): each waits empty
-  off screen, plays once when 40% in view, rests on its last frame, and has a
-  Replay button; nothing loops. Every section demo runs 2.5s (its `*_STEPS` add up to 2500) and shows it as a line under the frame that fills over that time, with no seconds label; the hero's conversations are longer and fill their example buttons instead. Motion shows what happens: typing dots then
+  off screen, plays once when 40% in view, rests on its last frame. No Replay
+  button, no duration bar; a demo plays once per visit and never loops. Every section demo runs 2.5s (its `*_STEPS` add up to 2500) (only the hero shows progress, by filling its example buttons). Motion shows what happens: typing dots then
   streamed words, a pointer that clicks, labels that cross-fade. Parts stay in the layout and only fade, slide or
   draw (`.demo-*` in `globals.css`), so frames never resize. Reduced motion
   and no-JS show the last frame. Pricing, the widget and its embed snippet
@@ -150,31 +164,46 @@ Brand tokens (`globals.css`): `brand-ink #12172a` (text), `brand-teal #00ab8f`
 
 ### Console (`features/console/ui/`, `features/organizations/ui/`)
 
-- Colour: neutral greys and ink, with the logo dot's teal (`#00ab8f`) as the
-  only accent (primary button, links, focus, ticks, status dot). The
-  `.console-theme` scope in `globals.css` re-points the tinted teal steps
-  (`primary-50/100/200/800/900`) to greys inside the console, so keep using
-  those classes; don't hard-code greys.
-
+- Compact, because it is an information tool: 36px controls (`h-9`), ~40px
+  table rows, sans-serif `text-xl/2xl` page titles (no `font-display`),
+  `py-6` page body. Don't add big headings or roomy padding.
+- Colour has one meaning each (see the header of `consoleUi.tsx`): teal =
+  action and brand (primary button, links, focus, Owner); blue = info
+  (Admin, notices); green = done/healthy; amber = needs attention; red =
+  destructive/failed; grey = the rest. Status colours come from the
+  `--status-*` tokens. The `.console-theme` scope re-points the tinted teal
+  steps (`primary-50/100/200/800/900`) to greys, so for a real teal tint use
+  `brand-teal/10`.
+- All badges are `Badge` with a `tone` (`RoleBadge`, billing status). All
+  notes are `Notice` with a `tone`. Don't hand-roll coloured pills.
 - `ConsoleShell`: left sidebar (drawer below `lg`), session check, `PageHeader`
-  (wash band). Building blocks in `consoleUi.tsx`: `Panel`, `Field`, `Modal`
-  (native `<dialog>`), `Notice`, `NoAccess`, `ErrorState`, `RoleBadge`,
-  `SearchInput`, table styles, `Skeleton`, button classes, `SideNote`.
-- A screen is one boxed `Panel` (the main table) plus unboxed `SideNote`s
-  beside it for what supports it — not a grid of matching cards. Split the two
-  with container queries (`@container`, `@4xl:`): the sidebar eats 256px.
-- Overview: the verdict is the `h1` ("Your assistant is ready to answer"), so
-  it is said once. One sheet rises into the header band: the document count
-  itemised like a receipt, a dashed tear line, then the recent documents
-  table. Side notes start lower, below the band. "Add content" appears once,
-  in the header.
-- Organizations: one table of every organization the user belongs to. Managed
-  ones link and show their people (one members request per row, first 12);
-  member-only ones are listed unlinked.
-- Members: three tables (Owners, Admins, Members), read-only; roles are
-  changed on the member page.
-- Invitations tab (owners and admins only, `manageOnly` in `TABS`): "Invite
-  member" top right, then the pending invitations table with Revoke.
+  (wash band). Building blocks in `consoleUi.tsx`: `Panel`, `PanelHeader`
+  (title + count left, search/filters/actions right), `DetailList` /
+  `DetailRow` (label-left facts), `CopyValue`, `Field`, `Modal` (native
+  `<dialog>`), `Notice`, `NoAccess`, `ErrorState`, `Badge`, `RoleBadge`,
+  `SearchInput`, table styles, `Skeleton`, button classes (`buttonGhost` for
+  row actions).
+- The console canvas is pale grey (`brand-wash`); content sits on white
+  `Panel`s. A list screen is one `Panel` whose `PanelHeader` holds its
+  title, count, filters and main action; forms and detail pages are a
+  single `max-w-3xl` column of panels.
+- Overview: one purpose — can the assistant answer, and from what. Title
+  "Overview" with a one-line status, two plain stat cards (Documents, Last
+  added), then the "Recent documents" table (Name, Type, Added). A setup
+  checklist shows above them only until setup is done. "Add content" appears
+  once, in the header.
+- Organizations: one full-width table of every organization the user belongs
+  to (Organization, Members, Your role, Created). Managed ones link and show
+  a member count (one members request per row, first 12); member-only ones
+  are unlinked and say "View only".
+- Organization page: compact header (logo, name, slug, "You are <role>"),
+  then tabs. Breadcrumbs come from `OrganizationBreadcrumb`.
+- Members: one read-only table (#, Name, Email, ID, Role, Joined, edit/view
+  icon) ranked Owner → Admin → Member (then by name); search and role filter
+  (All roles, Owner, Admin, Member) sit in its `PanelHeader`. Roles are
+  changed on the member page (Details, Role, Remove/Leave).
+- Invitations tab (owners and admins only, `manageOnly` in `TABS`): one
+  table with "Invite member" in its header; Revoke per row.
 - Organization tabs are deep-linkable (`?tab=invitations`, `?tab=settings`).
 
 ## Conventions

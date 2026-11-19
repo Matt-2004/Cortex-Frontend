@@ -156,7 +156,7 @@ const ConsoleBrand = () => (
   <Link
     href="/console"
     aria-label="Cortex console"
-    className="inline-flex shrink-0 items-center gap-2.5 rounded-sm"
+    className="inline-flex shrink-0 items-center gap-2.5 rounded-badge"
   >
     <Image
       src="/brand/cortex-cx-mark.svg"
@@ -166,7 +166,7 @@ const ConsoleBrand = () => (
       priority
     />
     <span className="text-[17px] font-semibold tracking-[-0.02em]">Cortex</span>
-    <span className="rounded-[4px] bg-brand-wash px-1.5 py-0.5 font-receipt text-[10px] tracking-[0.1em] text-primary-800 uppercase">
+    <span className="rounded-badge bg-brand-wash px-1.5 py-0.5 font-receipt text-[10px] tracking-[0.1em] text-primary-800 uppercase">
       Console
     </span>
   </Link>
@@ -217,17 +217,17 @@ const NavList = ({
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={clsx(
-                        "flex h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-150",
+                        "flex h-10 items-center gap-3 rounded-control px-3 text-sm transition-colors duration-150",
                         active
                           ? "bg-brand-wash font-medium text-primary-800"
-                          : "text-[#4B5468] hover:bg-brand-mist hover:text-brand-ink",
+                          : "text-brand-ink-muted hover:bg-brand-mist hover:text-brand-ink",
                       )}
                     >
                       <Icon
                         aria-hidden="true"
                         className={clsx(
                           "h-4 w-4 shrink-0",
-                          active ? "text-primary-700" : "text-[#6B7385]",
+                          active ? "text-primary-700" : "text-brand-ink-subtle",
                         )}
                       />
                       {label}
@@ -333,7 +333,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
             disabled={signingOut}
             aria-label="Sign out"
             title="Sign out"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[#4B5468] transition-colors duration-150 hover:bg-brand-wash hover:text-brand-ink disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-brand-ink-muted transition-colors duration-150 hover:bg-brand-wash hover:text-brand-ink disabled:pointer-events-none disabled:opacity-60"
           >
             {signingOut ? (
               <Spinner />
@@ -371,7 +371,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
       <div className="console-theme flex h-dvh flex-col bg-white text-brand-ink lg:flex-row">
         <a
           href="#console-main"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-primary-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[60] focus:rounded-control focus:bg-primary-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
         >
           Skip to content
         </a>
@@ -389,7 +389,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
             onClick={() => setMenuOpen(true)}
             aria-expanded={menuOpen}
             aria-controls="console-drawer"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-brand-ink/15 px-3 text-sm font-medium transition-colors hover:bg-brand-wash"
+            className="inline-flex h-9 items-center gap-2 rounded-control border border-brand-ink/15 px-3 text-sm font-medium transition-colors hover:bg-brand-wash"
           >
             <Menu aria-hidden="true" className="h-4 w-4" />
             Menu
@@ -420,7 +420,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
                 onClick={() => setMenuOpen(false)}
                 aria-label="Close menu"
                 autoFocus
-                className="absolute top-4 right-3 inline-flex h-9 w-9 items-center justify-center rounded-md text-[#4B5468] hover:bg-brand-wash"
+                className="absolute top-4 right-3 inline-flex h-9 w-9 items-center justify-center rounded-control text-brand-ink-muted hover:bg-brand-wash"
               >
                 <X aria-hidden="true" className="h-4 w-4" />
               </button>
@@ -431,7 +431,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
 
         <main
           id="console-main"
-          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-brand-wash"
         >
           {session.status !== "error" && (
             <ConsoleUserContext.Provider value={user}>
@@ -483,24 +483,24 @@ export const PageHeader = ({
   <div className="border-b border-brand-ink/10 bg-brand-wash">
     <Container
       className={clsx(
-        "pt-8 sm:pt-10",
-        children ? "" : overlap ? "pb-20 sm:pb-24" : "pb-8 sm:pb-10",
+        "pt-5 sm:pt-6",
+        children ? "" : overlap ? "pb-16 sm:pb-20" : "pb-5 sm:pb-6",
       )}
     >
       {breadcrumb && (
-        <div className={clsx("mb-4 text-sm", mutedText)}>{breadcrumb}</div>
+        <div className={clsx("mb-2 text-xs", mutedText)}>{breadcrumb}</div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5">
-        <div className="flex min-w-0 items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
           {media}
           <div className="min-w-0">
-            <h1 className="font-display text-[32px] leading-[1.1] tracking-[-0.015em] text-balance break-words sm:text-[38px]">
+            <h1 className="text-xl leading-tight font-semibold tracking-[-0.01em] break-words sm:text-2xl">
               {title}
             </h1>
             {description && (
               <div
                 className={clsx(
-                  "mt-2 max-w-2xl text-[15px] text-pretty",
+                  "mt-1 max-w-2xl text-sm text-pretty",
                   mutedText,
                 )}
               >
@@ -510,12 +510,12 @@ export const PageHeader = ({
           </div>
         </div>
         {actions && (
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {actions}
           </div>
         )}
       </div>
-      {children && <div className="mt-8">{children}</div>}
+      {children && <div className="mt-4">{children}</div>}
     </Container>
   </div>
 );

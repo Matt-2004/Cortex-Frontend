@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { newsreader, plexMono } from "./features/landing/fonts";
+import { plexMono, roboto } from "./features/landing/fonts";
 import { Hero } from "./features/landing/ui/Hero";
 import { Pricing } from "./features/landing/ui/Pricing";
 import { SiteFooter } from "./features/landing/ui/SiteFooter";
 import { SiteHeader } from "./features/landing/ui/SiteHeader";
 import {
+  BusinessValue,
   CitedAnswers,
   GetStarted,
   HowItWorks,
@@ -28,18 +29,19 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div
-      className={`${newsreader.variable} ${plexMono.variable} bg-white text-brand-ink`}
+      className={`${roboto.variable} ${plexMono.variable} bg-white text-brand-ink`}
     >
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-primary-700 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-control focus:bg-primary-700 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Skip to content
       </a>
       <SiteHeader />
       <main id="main">
-        {/* Order: what it is, what it does (two features), why trust it, how to set it up, cost. */}
+        {/* Order: what it is, what it saves, what it does (two features), why trust it, how to set it up, cost. */}
         <Hero />
+        <BusinessValue />
         <CitedAnswers />
         <Recommendations />
         <WhyCortex />
