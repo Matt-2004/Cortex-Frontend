@@ -38,10 +38,10 @@ const errorMessage = (error: unknown) =>
     : "Something went wrong. Please try again.";
 
 const inputClass =
-  "w-full rounded-md border border-brand-ink/15 bg-white px-3 py-2.5 text-sm text-brand-ink placeholder:text-[#6B7385] focus:border-primary-700 focus:shadow-[0_0_0_3px_rgba(0,171,143,0.22)] focus:outline-none";
+  "w-full rounded-control border border-brand-ink/15 bg-white px-3 py-2.5 text-sm text-brand-ink placeholder:text-brand-ink-subtle focus:border-primary-700 focus:shadow-[0_0_0_3px_rgba(0,171,143,0.22)] focus:outline-none";
 
 const primaryButtonClass =
-  "inline-flex items-center justify-center gap-2 rounded-md bg-brand-teal px-4 py-2.5 text-sm font-semibold text-brand-ink transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-control bg-brand-teal px-4 py-2.5 text-sm font-semibold text-brand-ink transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const AddContentPanel = ({ onAdded }: { onAdded: () => void }) => {
   const [tab, setTab] = useState<Tab>("upload");
@@ -56,7 +56,7 @@ export const AddContentPanel = ({ onAdded }: { onAdded: () => void }) => {
   return (
     <section
       aria-labelledby={`${tabsId}-heading`}
-      className="rounded-lg border border-brand-ink/10 bg-white"
+      className="rounded-box border border-brand-ink/10 bg-white"
     >
       <div className="border-b border-brand-ink/10 px-5 pt-4">
         <h2 id={`${tabsId}-heading`} className="text-base font-semibold">
@@ -92,7 +92,7 @@ export const AddContentPanel = ({ onAdded }: { onAdded: () => void }) => {
                 "-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 whitespace-nowrap px-3 pb-2.5 text-sm font-medium transition-colors",
                 tab === id
                   ? "border-primary-700 text-brand-ink"
-                  : "border-transparent text-[#4B5468] hover:text-brand-ink",
+                  : "border-transparent text-brand-ink-muted hover:text-brand-ink",
               )}
             >
               <Icon aria-hidden="true" className="h-4 w-4" />
@@ -191,7 +191,7 @@ const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
           if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
         }}
         className={clsx(
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed px-6 py-10 text-center transition-colors",
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-control border border-dashed px-6 py-10 text-center transition-colors",
           "focus-within:border-primary-700",
           dragging
             ? "border-primary-700 bg-brand-wash"
@@ -205,7 +205,7 @@ const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
             browse
           </span>
         </span>
-        <span className="text-xs text-[#6B7385]">
+        <span className="text-xs text-brand-ink-subtle">
           PDF, TXT, Markdown or HTML · up to 20 MB each
         </span>
         <input
@@ -226,7 +226,7 @@ const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
         <ul
           aria-label="Uploads"
           aria-live="polite"
-          className="flex flex-col divide-y divide-brand-ink/10 rounded-md border border-brand-ink/10"
+          className="flex flex-col divide-y divide-brand-ink/10 rounded-control border border-brand-ink/10"
         >
           {items.map((it) => (
             <li
@@ -235,14 +235,14 @@ const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
             >
               <FileText
                 aria-hidden="true"
-                className="h-4 w-4 shrink-0 text-[#6B7385]"
+                className="h-4 w-4 shrink-0 text-brand-ink-subtle"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-brand-ink">{it.name}</p>
                 <p
                   className={clsx(
                     "text-xs",
-                    it.status === "error" ? "text-[#B42318]" : "text-[#6B7385]",
+                    it.status === "error" ? "text-[#B42318]" : "text-brand-ink-subtle",
                   )}
                 >
                   {it.status === "queued" &&
@@ -274,7 +274,7 @@ const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
           ))}
         </ul>
       )}
-      <p className="text-xs text-[#6B7385]">
+      <p className="text-xs text-brand-ink-subtle">
         Large PDFs can take a minute: every page is split into chunks and
         embedded. Scanned (image-only) PDFs have no text and can&apos;t be
         indexed.
@@ -322,7 +322,7 @@ const UrlTab = ({ onAdded }: { onAdded: () => void }) => {
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-3">
-      <label htmlFor={id} className="text-sm font-medium text-[#4B5468]">
+      <label htmlFor={id} className="text-sm font-medium text-brand-ink-muted">
         Page address
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -352,7 +352,7 @@ const UrlTab = ({ onAdded }: { onAdded: () => void }) => {
           {busy ? "Fetching…" : "Add page"}
         </button>
       </div>
-      <p id={`${id}-hint`} className="text-xs text-[#6B7385]">
+      <p id={`${id}-hint`} className="text-xs text-brand-ink-subtle">
         One public page at a time (e.g. your FAQ, shipping or refund policy).
       </p>
       <p
@@ -409,7 +409,7 @@ const TextTab = ({ onAdded }: { onAdded: () => void }) => {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={`${id}-title`}
-          className="text-sm font-medium text-[#4B5468]"
+          className="text-sm font-medium text-brand-ink-muted"
         >
           Title
         </label>
@@ -425,7 +425,7 @@ const TextTab = ({ onAdded }: { onAdded: () => void }) => {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={`${id}-text`}
-          className="text-sm font-medium text-[#4B5468]"
+          className="text-sm font-medium text-brand-ink-muted"
         >
           Text
         </label>

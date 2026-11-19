@@ -21,12 +21,14 @@ import {
 } from "../types/organization.types";
 import {
   EmptyTableRow,
-  ErrorState,
   Field,
   Modal,
   Panel,
+  PanelHeader,
+  RoleBadge,
   SkeletonRows,
   Spinner,
+  buttonGhost,
   buttonPrimary,
   buttonSecondary,
   formatDate,
@@ -65,32 +67,44 @@ export const InvitationsPanel = ({
   const { resource, reload, retry } = useResource(load);
   const [inviting, setInviting] = useState(false);
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-lg font-semibold">Pending</h2>
-          {resource.status === "ready" && resource.data.length > 0 && (
-            <p className={clsx("text-sm tabular-nums", mutedText)}>
-              {resource.data.length}
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setInviting(true)}
-          className={clsx(buttonPrimary, "h-9 shrink-0 whitespace-nowrap px-3")}
-        >
-          <UserPlus aria-hidden="true" className="h-4 w-4" />
-          Invite member
-        </button>
-      </div>
+  // Who is already in, so the invite form can refuse them before sending.
+  const loadMembers = useCallback(
+    (signal: AbortSignal) => organizationsApi.members(organizationId, signal),
+    [organizationId],
+  );
+  const { resource: members, reload: reloadMembers } = useResource(loadMembers);
 
+  const memberEmails = new Set(
+    members.status === "ready"
+      ? members.data.map((member) => member.email.toLowerCase())
+      : [],
+  );
+  const pendingEmails = new Set(
+    resource.status === "ready"
+      ? resource.data.map((invitation) => invitation.email.toLowerCase())
+      : [],
+  );
+
+  return (
+    <>
       <PendingInvitations
         organizationId={organizationId}
         resource={resource}
         onRetry={retry}
         onChanged={reload}
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              setInviting(true);
+              void reloadMembers();
+            }}
+            className={clsx(buttonPrimary, "shrink-0 whitespace-nowrap")}
+          >
+            <UserPlus aria-hidden="true" className="h-4 w-4" />
+            Invite member
+          </button>
+        }
       />
 
       <InviteModal
@@ -100,17 +114,14 @@ export const InvitationsPanel = ({
         organizationId={organizationId}
         organizationName={organizationName}
         onInvited={reload}
+        memberEmails={memberEmails}
+        pendingEmails={pendingEmails}
       />
-    </div>
+    </>
   );
 };
 
-const INVITATION_COLUMNS = [
-  "",
-  "hidden md:table-cell",
-  "hidden sm:table-cell",
-  "w-32",
-];
+const INVITATION_COLUMNS = ["", "w-24 sm:w-28", "hidden sm:table-cell", "w-24"];
 
 /** Invitations sent but not accepted yet. Revoking one voids its link. */
 const PendingInvitations = ({
@@ -118,11 +129,14 @@ const PendingInvitations = ({
   resource,
   onRetry,
   onChanged,
+  action,
 }: {
   organizationId: string;
   resource: Resource<OrganizationInvitation[]>;
   onRetry: () => void;
   onChanged: () => Promise<unknown>;
+  /** "Invite member", in the table's header bar. */
+  action: React.ReactNode;
 }) => {
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
@@ -144,32 +158,25 @@ const PendingInvitations = ({
     }
   };
 
-  if (resource.status === "error") {
-    return (
-      <ErrorState
-        title="The invitations could not be loaded"
-        message={resource.error.message}
-        onRetry={onRetry}
-      />
-    );
-  }
-
   const pending = resource.status === "ready" ? resource.data : [];
 
   return (
     <Panel className="overflow-hidden">
-      <section aria-label="Pending invitations">
+      <section aria-labelledby="pending-invitations">
+        <PanelHeader
+          id="pending-invitations"
+          title="Pending invitations"
+          count={resource.status === "ready" ? pending.length : null}
+          description="People join once they accept the emailed link."
+          actions={action}
+        />
         <table className={clsx(tableLook, "table-fixed")}>
-          <caption className="sr-only">Pending invitations</caption>
           <thead>
             <tr>
               <th scope="col" className={thLook}>
                 Email
               </th>
-              <th
-                scope="col"
-                className={clsx(thLook, "hidden w-28 md:table-cell")}
-              >
+              <th scope="col" className={clsx(thLook, "w-24 sm:w-28")}>
                 Role
               </th>
               <th
@@ -178,7 +185,7 @@ const PendingInvitations = ({
               >
                 Expires
               </th>
-              <th scope="col" className={clsx(thLook, "w-32")}>
+              <th scope="col" className={clsx(thLook, "w-24")}>
                 <span className="sr-only">Revoke</span>
               </th>
             </tr>
@@ -187,9 +194,24 @@ const PendingInvitations = ({
             {resource.status === "loading" && (
               <SkeletonRows columns={INVITATION_COLUMNS} />
             )}
+            {resource.status === "error" && (
+              <EmptyTableRow
+                colSpan={4}
+                title="The invitations could not be loaded"
+              >
+                <p>{resource.error.message}</p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className={clsx(buttonSecondary, "mt-3")}
+                >
+                  Try again
+                </button>
+              </EmptyTableRow>
+            )}
             {resource.status === "ready" && pending.length === 0 && (
               <EmptyTableRow colSpan={4} title="No pending invitations">
-                Invite someone by email. They join once they accept.
+                Use Invite member to add someone by email.
               </EmptyTableRow>
             )}
             {pending.map((invitation) => (
@@ -200,8 +222,8 @@ const PendingInvitations = ({
                     Invited by {invitation.invitedByName}
                   </p>
                 </td>
-                <td className={clsx(tdLook, "hidden md:table-cell")}>
-                  {roleLabel(invitation.role)}
+                <td className={tdLook}>
+                  <RoleBadge role={invitation.role} />
                 </td>
                 <td
                   className={clsx(
@@ -212,13 +234,16 @@ const PendingInvitations = ({
                 >
                   {formatDate(invitation.expiresAt)}
                 </td>
-                <td className={clsx(tdLook, "w-32 text-right")}>
+                <td className={clsx(tdLook, "w-24 pr-2 text-right")}>
                   <button
                     type="button"
                     onClick={() => revoke(invitation)}
                     disabled={revoking !== null}
                     aria-label={`Revoke the invitation to ${invitation.email}`}
-                    className={clsx(buttonSecondary, "h-8 px-3")}
+                    className={clsx(
+                      buttonGhost,
+                      "hover:bg-status-error-bg hover:text-status-error-text",
+                    )}
                   >
                     {revoking === invitation.id ? <Spinner /> : "Revoke"}
                   </button>
@@ -240,6 +265,8 @@ const InviteModal = ({
   organizationId,
   organizationName,
   onInvited,
+  memberEmails,
+  pendingEmails,
 }: {
   viewerRole: OrganizationRole;
   open: boolean;
@@ -248,6 +275,10 @@ const InviteModal = ({
   organizationName: string;
   /** Reloads the pending invitations; resolves once the backend answered. */
   onInvited: () => Promise<unknown>;
+  /** Lower-cased emails of current members; they can't be invited. */
+  memberEmails: Set<string>;
+  /** Lower-cased emails that already have a pending invitation. */
+  pendingEmails: Set<string>;
 }) => {
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
@@ -269,6 +300,14 @@ const InviteModal = ({
     const trimmed = email.trim();
     if (!EMAIL_PATTERN.test(trimmed)) {
       setError("Enter a valid email address.");
+      return;
+    }
+    if (memberEmails.has(trimmed.toLowerCase())) {
+      setError(`${trimmed} is already a member of ${organizationName}.`);
+      return;
+    }
+    if (pendingEmails.has(trimmed.toLowerCase())) {
+      setError(`${trimmed} already has a pending invitation.`);
       return;
     }
     setError(undefined);
@@ -302,7 +341,7 @@ const InviteModal = ({
       title="Invite a member"
       description={`We email them a link. They join ${organizationName} once they accept it.`}
     >
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <Field label="Email" htmlFor="member-email" error={error}>
           <input
             id="member-email"
@@ -339,7 +378,7 @@ const InviteModal = ({
             ))}
           </select>
         </Field>
-        <div className="mt-1 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={close}

@@ -48,9 +48,9 @@ const planItems = (plan: PlanDto) =>
       ];
 
 const outlineButton =
-  "inline-flex items-center justify-center rounded-md border border-brand-ink/20 bg-white font-semibold text-brand-ink transition-colors duration-150 hover:border-brand-ink/50";
+  "inline-flex items-center justify-center rounded-control border border-brand-ink/20 bg-white font-semibold text-brand-ink transition-colors duration-150 hover:border-brand-ink/50";
 
-const cardLook = "relative flex flex-col rounded-xl bg-white p-6 sm:p-8";
+const cardLook = "relative flex flex-col rounded-card bg-white p-6 sm:p-8";
 
 const PlanCard = ({ plan }: { plan: PlanDto }) => {
   const free = plan.priceMinor === 0;
@@ -66,26 +66,26 @@ const PlanCard = ({ plan }: { plan: PlanDto }) => {
       )}
     >
       {featured && (
-        <p className="absolute -top-3 left-6 rounded-[4px] bg-brand-teal px-2 py-1 font-receipt text-[10px] tracking-[0.1em] text-brand-ink uppercase sm:left-8">
+        <p className="absolute -top-3 left-6 rounded-badge bg-brand-teal px-2 py-1 font-receipt text-[10px] tracking-[0.1em] text-brand-ink uppercase sm:left-8">
           Most popular
         </p>
       )}
-      <h3 className="font-display text-[1.75rem] leading-none text-brand-ink">
+      <h3 className="font-display font-heading text-[1.75rem] leading-none text-brand-ink">
         {plan.name}
       </h3>
       {/* Two lines tall where the columns are narrow, so prices stay level. */}
-      <p className="mt-2 text-sm text-[#4B5468] md:max-lg:min-h-10">
+      <p className="mt-2 text-sm text-brand-ink-muted md:max-lg:min-h-10">
         {BLURBS[plan.code] ?? ""}
       </p>
 
-      <p className="mt-6 flex items-baseline gap-2 text-brand-ink">
-        <span className="font-display text-5xl leading-none tracking-[-0.02em] tabular-nums">
+      <p className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-brand-ink">
+        <span className="font-display text-5xl leading-none md:text-4xl lg:text-5xl tracking-[-0.02em] tabular-nums">
           {formatPlanPrice(plan)}
         </span>
-        {!free && <span className="text-sm text-[#4B5468]">a month</span>}
+        {!free && <span className="text-sm text-brand-ink-muted">a month</span>}
       </p>
       {/* Always one line tall, so the buttons stay level. */}
-      <p className="mt-2 min-h-5 font-receipt text-xs text-[#4B5468]">
+      <p className="mt-2 min-h-5 font-receipt text-xs text-brand-ink-muted">
         {free ? "No card needed" : "Billed every month"}
       </p>
 
@@ -102,7 +102,7 @@ const PlanCard = ({ plan }: { plan: PlanDto }) => {
       <p className="mt-8 border-t border-brand-ink/10 pt-6 text-sm font-medium text-brand-ink">
         Includes
       </p>
-      <ul className="mt-4 space-y-3 text-sm text-[#4B5468]">
+      <ul className="mt-4 space-y-3 text-sm text-brand-ink-muted">
         {planItems(plan).map((item) => (
           <li key={item} className="flex gap-3">
             <Check
@@ -124,10 +124,10 @@ const PlanCardSkeleton = () => (
     aria-hidden="true"
     className={clsx(cardLook, "min-h-[30rem] border border-brand-ink/15")}
   >
-    <span className="block h-7 w-28 rounded bg-brand-ink/[0.07]" />
-    <span className="mt-3 block h-4 w-44 rounded bg-brand-ink/[0.07]" />
-    <span className="mt-6 block h-12 w-36 rounded bg-brand-ink/[0.07]" />
-    <span className="mt-8 block h-11 w-full rounded-md bg-brand-ink/[0.07]" />
+    <span className="block h-7 w-28 rounded-badge bg-brand-ink/[0.07]" />
+    <span className="mt-3 block h-4 w-44 rounded-badge bg-brand-ink/[0.07]" />
+    <span className="mt-6 block h-12 w-36 rounded-badge bg-brand-ink/[0.07]" />
+    <span className="mt-8 block h-11 w-full rounded-control bg-brand-ink/[0.07]" />
   </div>
 );
 
@@ -164,7 +164,7 @@ export const Pricing = () => {
     <section
       id="pricing"
       aria-labelledby="pricing-title"
-      className={`${sectionShell} bg-white`}
+      className={`${sectionShell} bg-brand-wash`}
     >
       <Container>
         <div>
@@ -175,14 +175,14 @@ export const Pricing = () => {
           >
             Start free, upgrade later
           </h2>
-          <p className="mt-4 text-lg text-[#4B5468]">
+          <p className="mt-4 text-lg text-brand-ink-muted">
             Monthly plans. Change or cancel any time.
           </p>
         </div>
 
         {catalog.status === "error" ||
         (catalog.status === "ready" && catalog.plans.length === 0) ? (
-          <p className="mt-12 text-[#4B5468] lg:mt-14">
+          <p className="mt-12 text-brand-ink-muted lg:mt-14">
             Plans could not be loaded right now. Please try again later.
           </p>
         ) : (

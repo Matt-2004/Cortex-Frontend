@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { clsx } from "clsx";
@@ -14,9 +14,10 @@ import { Reveal } from "./Reveal";
  *
  * Colour: white and the neutral wash for sections, one deep-teal band for the
  * closing call to action, and teal (the logo's dot) as the one action colour. Navy is for text,
- * never a background. Spacing: sections share sectionShell; visuals sit in a
- * frame that hugs its content with even padding. The one exception to the layout is the FAQ,
- * which runs the full width with no frame (it reuses sectionShell and sectionTitle).
+ * never a background. Spacing: sections share sectionShell; visuals have no
+ * box around them: their cards float on the section (shadow-float). The one
+ * exception to the layout is the FAQ, which runs the full width (it reuses
+ * sectionShell and sectionTitle).
  * No client code here, so sections can stay Server Components.
  * ──────────────────────────────────────────────────────────── */
 
@@ -38,7 +39,7 @@ export const Brand = () => (
   <Link
     href="/"
     aria-label="Cortex home"
-    className="inline-flex items-center gap-2.5 rounded-sm"
+    className="inline-flex items-center gap-2.5 rounded-badge"
   >
     <Image
       src="/brand/cortex-cx-mark.svg"
@@ -79,7 +80,7 @@ export const Cite = ({
 }) => (
   <span
     className={clsx(
-      "ml-1 inline-flex h-4 min-w-4 -translate-y-px items-center justify-center rounded-[3px] px-1 align-middle text-[10px] font-semibold",
+      "ml-1 inline-flex h-4 min-w-4 -translate-y-px items-center justify-center rounded-badge px-1 align-middle text-[10px] font-semibold",
       tone === "accent"
         ? "bg-[color-mix(in_srgb,var(--chat-accent)_16%,white)] text-[var(--chat-accent)] transition-colors duration-500"
         : "bg-primary-100 text-primary-800",
@@ -112,24 +113,23 @@ const buttonMotion =
   "transition-[background-color,translate] duration-150 hover:-translate-y-px active:translate-y-px active:duration-75 motion-reduce:translate-y-0";
 
 /** The one action colour: teal with navy text, on every background. */
-export const primaryButtonLook = `inline-flex items-center justify-center rounded-md bg-brand-teal font-semibold text-brand-ink hover:bg-primary-400 active:bg-primary-500 ${buttonMotion}`;
+export const primaryButtonLook = `inline-flex items-center justify-center rounded-control bg-brand-teal font-semibold text-brand-ink hover:bg-primary-400 active:bg-primary-500 ${buttonMotion}`;
 
 export const primaryButton = `${primaryButtonLook} h-12 px-6 text-[15px]`;
 
 /** For the deep-teal band, where the teal button would disappear. */
-export const lightButton = `inline-flex h-12 items-center justify-center rounded-md bg-white px-6 text-[15px] font-semibold text-brand-ink hover:bg-primary-50 ${buttonMotion}`;
+export const lightButton = `inline-flex h-12 items-center justify-center rounded-control bg-white px-6 text-[15px] font-semibold text-brand-ink hover:bg-primary-50 ${buttonMotion}`;
 
 export const textLink =
   "font-medium underline decoration-current/30 decoration-1 underline-offset-4 transition-[text-decoration-color] duration-150 hover:decoration-brand-teal";
 
-/** The frame every supporting visual sits in. It hugs its content with even
-    padding; its colour comes from the section's tone so it stands off the background. */
-export const figureFrame =
-  "flex items-center justify-center rounded-xl bg-[var(--frame-bg,var(--brand-wash))] p-5 sm:p-8 lg:p-10";
+/** Where a supporting visual sits. No box of its own: the visual's cards float
+    straight on the section, lifted by shadow-float. */
+export const figureFrame = "flex items-center justify-center";
 
-/** A white card inside a figure frame. */
+/** A white card that floats on the section. */
 export const figureCard =
-  "w-full rounded-lg border border-brand-ink/10 bg-white shadow-[0_12px_24px_-18px_rgba(18,23,42,0.35)]";
+  "w-full rounded-box border border-brand-ink/10 bg-white shadow-float";
 
 /**
  * The supporting visual of a section.
@@ -238,16 +238,15 @@ export const sectionShell = "scroll-mt-16 py-16 sm:py-20 lg:py-24";
 
 /** Heading look shared by every section. Add a size and a colour. */
 export const sectionTitle =
-  "mt-4 font-display leading-[1.06] font-normal tracking-[-0.022em] text-balance";
+  "mt-4 font-display leading-[1.06] font-heading tracking-[-0.022em] text-balance";
 
 export type SectionTone = "white" | "wash" | "teal";
 
-/** Background of the section, and the frame colour that reads against it:
-    a grey frame on white, a white frame on the grey wash, a darker teal frame on teal. */
-const TONES: Record<SectionTone, { section: string; frameBg: string }> = {
-  white: { section: "bg-white", frameBg: "var(--brand-wash)" },
-  wash: { section: "bg-brand-wash", frameBg: "#FFFFFF" },
-  teal: { section: "bg-primary-700", frameBg: "var(--main-color-800)" },
+/** Background of the section. */
+const TONES: Record<SectionTone, string> = {
+  white: "bg-white",
+  wash: "bg-brand-wash",
+  teal: "bg-primary-700",
 };
 
 /** Patterns are defined in globals.css. Each stands for something in the section it backs. */
@@ -293,7 +292,7 @@ export const Section = ({
 }: SectionProps) => {
   const Heading = hero ? "h1" : "h2";
   const dark = tone === "teal";
-  const { section, frameBg } = TONES[tone];
+  const section = TONES[tone];
   const TextColumn = hero ? "div" : Reveal;
   const FigureColumn = hero ? "div" : Reveal;
   return (
@@ -308,7 +307,6 @@ export const Section = ({
         // itself, capped so a tall monitor doesn't leave it adrift.
         "lg:flex lg:min-h-[min(calc(100svh-4rem),780px)] lg:items-center",
       )}
-      style={{ "--frame-bg": frameBg } as CSSProperties}
     >
       {pattern && (
         <div
@@ -344,7 +342,7 @@ export const Section = ({
             <p
               className={clsx(
                 "mt-5 max-w-md text-lg leading-relaxed text-pretty",
-                dark ? "text-white/85" : "text-[#4B5468]",
+                dark ? "text-white/85" : "text-brand-ink-muted",
               )}
             >
               {lead}

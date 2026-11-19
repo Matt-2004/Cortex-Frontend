@@ -65,7 +65,7 @@ export const KnowledgeBase = () => (
       <>
         {header}
         <Container className="py-8 sm:py-10">
-          <Skeleton className="h-56 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-card" />
         </Container>
       </>
     }
@@ -173,7 +173,7 @@ const Knowledge = () => {
                 <button
                   type="button"
                   onClick={retry}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-[#4B5468] transition-colors hover:bg-brand-wash hover:text-brand-ink"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs font-medium text-brand-ink-muted transition-colors hover:bg-brand-wash hover:text-brand-ink"
                 >
                   <RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />
                   Refresh
@@ -191,7 +191,7 @@ const Knowledge = () => {
                       key={row}
                       className="flex items-center gap-4 px-4 py-3.5 sm:px-6"
                     >
-                      <Skeleton className="h-9 w-9 rounded-lg" />
+                      <Skeleton className="h-9 w-9 rounded-box" />
                       <div className="flex-1">
                         <Skeleton className="h-4 w-56 max-w-full" />
                         <Skeleton className="mt-2 h-3 w-40" />
@@ -235,14 +235,14 @@ const Knowledge = () => {
                           "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors disabled:opacity-40",
                           type === value
                             ? "border-primary-700 bg-primary-700 text-white"
-                            : "border-brand-ink/15 text-[#4B5468] hover:border-brand-ink/30 hover:text-brand-ink",
+                            : "border-brand-ink/15 text-brand-ink-muted hover:border-brand-ink/30 hover:text-brand-ink",
                         )}
                       >
                         {label}
                         <span
                           className={clsx(
                             "tabular-nums",
-                            type === value ? "text-white/80" : "text-[#6B7385]",
+                            type === value ? "text-white/80" : "text-brand-ink-subtle",
                           )}
                         >
                           {n}
@@ -300,7 +300,7 @@ const Knowledge = () => {
 };
 
 const Stat = ({ label, value }: { label: string; value: string | number }) => (
-  <div className="rounded-xl border border-brand-ink/10 bg-white px-4 py-3">
+  <div className="rounded-card border border-brand-ink/10 bg-white px-4 py-3">
     <dt className={clsx("text-xs font-medium", mutedText)}>{label}</dt>
     <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
   </div>
@@ -341,7 +341,7 @@ const SourceRow = ({
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:px-6">
       <span
         aria-hidden="true"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-wash text-primary-700"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-box bg-brand-wash text-primary-700"
       >
         <Icon className="h-4 w-4" />
       </span>
@@ -379,7 +379,7 @@ const SourceRow = ({
             type="button"
             onClick={() => setConfirming(false)}
             disabled={deleting}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-[#4B5468] hover:bg-brand-mist hover:text-brand-ink"
+            className="rounded-control px-2.5 py-1.5 text-xs font-medium text-brand-ink-muted hover:bg-brand-mist hover:text-brand-ink"
           >
             Cancel
           </button>
@@ -388,7 +388,7 @@ const SourceRow = ({
             onClick={remove}
             disabled={deleting}
             className={clsx(
-              "inline-flex items-center gap-1.5 rounded-md border border-[#D92D20]/30 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#B42318] hover:bg-[#FEF3F2]",
+              "inline-flex items-center gap-1.5 rounded-control border border-status-error/30 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#B42318] hover:bg-[#FEF3F2]",
               deleting && "cursor-wait opacity-70",
             )}
           >
@@ -401,7 +401,7 @@ const SourceRow = ({
           type="button"
           onClick={() => setConfirming(true)}
           aria-label={`Delete ${title}`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[#4B5468] transition-colors hover:bg-[#FEF3F2] hover:text-[#B42318]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-control text-brand-ink-muted transition-colors hover:bg-[#FEF3F2] hover:text-[#B42318]"
         >
           <Trash2 aria-hidden="true" className="h-4 w-4" />
         </button>

@@ -7,7 +7,14 @@ import {
   safeSuccessMessage,
 } from "@/app/shared/utils/errors/safeMessage";
 import clsx from "clsx";
-import { CheckCircle2, Info, X, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  X,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -16,15 +23,18 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "warning" | "info";
 
 interface ToastState {
   toastType: ToastType | null;
   message: string | null;
   duration?: number;
+  /** Changes on every new toast, so the same message twice restarts it. */
+  id?: number;
 }
 
 interface ToastContextValue {
@@ -43,6 +53,44 @@ interface ToastContextValue {
 }
 
 const DEFAULT_TOAST_DURATION = 2500;
+/** Errors and warnings stay longer: they usually need reading. */
+const LONG_TOAST_DURATION = 5000;
+
+/** One look per status: a light tint, a coloured icon, dark text
+    (see --status-* in globals.css). */
+const LOOKS: Record<
+  ToastType,
+  { title: string; icon: LucideIcon; surface: string; iconColor: string }
+> = {
+  success: {
+    title: "Success",
+    icon: CheckCircle2,
+    surface:
+      "border-status-success-border bg-status-success-bg text-status-success-text",
+    iconColor: "text-status-success",
+  },
+  error: {
+    title: "Error",
+    icon: XCircle,
+    surface:
+      "border-status-error-border bg-status-error-bg text-status-error-text",
+    iconColor: "text-status-error",
+  },
+  warning: {
+    title: "Warning",
+    icon: AlertTriangle,
+    surface:
+      "border-status-warning-border bg-status-warning-bg text-status-warning-text",
+    iconColor: "text-status-warning",
+  },
+  info: {
+    title: "Info",
+    icon: Info,
+    surface:
+      "border-status-info-border bg-status-info-bg text-status-info-text",
+    iconColor: "text-status-info",
+  },
+};
 
 export const ToastContext = createContext<ToastContextValue | undefined>(
   undefined,
@@ -55,14 +103,21 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
     message: null,
     duration: DEFAULT_TOAST_DURATION,
   });
+  const [paused, setPaused] = useState(false);
 
   const addToastMessage = useCallback(
-    (
-      toastType: ToastType,
-      message: string,
-      duration: number = DEFAULT_TOAST_DURATION,
-    ) => {
-      setToast({ toastType, message, duration });
+    (toastType: ToastType, message: string, duration?: number) => {
+      setPaused(false);
+      setToast({
+        toastType,
+        message,
+        duration:
+          duration ??
+          (toastType === "error" || toastType === "warning"
+            ? LONG_TOAST_DURATION
+            : DEFAULT_TOAST_DURATION),
+        id: Date.now(),
+      });
     },
     [],
   );
@@ -90,24 +145,36 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
         addToastMessage(
           "error",
           safeErrorMessage(res.message, res.status),
-          duration,
+          LONG_TOAST_DURATION,
         );
       }
     },
     [addToastMessage, router],
   );
 
-  useEffect(() => {
-    if (!toast.toastType || !toast.message) return;
+  // The timer pauses while the pointer or focus is on the toast, and resumes
+  // with the time that was left.
+  const remaining = useRef(0);
+  const startedAt = useRef(0);
 
-    const timeout = window.setTimeout(() => {
-      removeToastMessage();
-    }, toast.duration ?? DEFAULT_TOAST_DURATION);
+  useEffect(() => {
+    remaining.current = toast.duration ?? DEFAULT_TOAST_DURATION;
+  }, [toast.id, toast.duration]);
+
+  useEffect(() => {
+    if (!toast.toastType || !toast.message || paused) return;
+
+    startedAt.current = performance.now();
+    const timeout = window.setTimeout(removeToastMessage, remaining.current);
 
     return () => {
       window.clearTimeout(timeout);
+      remaining.current = Math.max(
+        0,
+        remaining.current - (performance.now() - startedAt.current),
+      );
     };
-  }, [toast.toastType, toast.message, toast.duration, removeToastMessage]);
+  }, [toast.toastType, toast.message, toast.id, paused, removeToastMessage]);
 
   const contextValue = useMemo(
     () => ({
@@ -120,77 +187,48 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
     [toast, addToastMessage, removeToastMessage, handleToast],
   );
 
+  const look = toast.toastType ? LOOKS[toast.toastType] : null;
+  const urgent = toast.toastType === "error" || toast.toastType === "warning";
+
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      {toast.toastType !== null && toast.message !== null && (
-        <div className="fixed top-5 left-1/2 z-9999 w-[min(92vw,30rem)] -translate-x-1/2">
+      {look && toast.message !== null && (
+        <div className="pointer-events-none fixed top-5 left-1/2 z-9999 w-[min(92vw,26rem)] -translate-x-1/2">
           <div
-            role="status"
-            aria-live="polite"
+            key={toast.id}
+            role={urgent ? "alert" : "status"}
+            aria-live={urgent ? "assertive" : "polite"}
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
             className={clsx(
-              "relative w-full overflow-hidden rounded-lg shadow-sm bg-white px-4 py-3.5 ",
-              "ring-1 ring-black/5",
-              {
-                "border-emerald-200 text-slate-800":
-                  toast.toastType === "success",
-                " text-slate-800": toast.toastType === "error",
-                "border-sky-200 text-slate-800": toast.toastType === "info",
-              },
+              "toast-in pointer-events-auto relative overflow-hidden rounded-box border shadow-[0_12px_32px_-16px_rgba(18,23,42,0.35)]",
+              look.surface,
             )}
           >
-            <span
-              className={clsx("absolute top-0 left-0 h-full w-1.5 bg-white")}
-            />
-
-            <div className="flex items-start justify-between gap-3">
-              <div
-                className={clsx(
-                  "mt-0.5 ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                  {
-                    "bg-emerald-100 text-emerald-600":
-                      toast.toastType === "success",
-                    "bg-rose-100 text-rose-600": toast.toastType === "error",
-                    "bg-sky-100 text-sky-600": toast.toastType === "info",
-                  },
-                )}
-              >
-                {toast.toastType === "success" ? (
-                  <CheckCircle2 className="h-5 w-5" strokeWidth={2.2} />
-                ) : toast.toastType === "error" ? (
-                  <XCircle className="h-5 w-5" strokeWidth={2.2} />
-                ) : (
-                  <Info className="h-5 w-5" strokeWidth={2.2} />
-                )}
-              </div>
-
+            <div className="flex items-start gap-3 py-3.5 pr-2.5 pl-4">
+              <look.icon
+                aria-hidden="true"
+                className={clsx("mt-px h-5 w-5 shrink-0", look.iconColor)}
+                strokeWidth={2.2}
+              />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-5 tracking-wide text-slate-900">
-                  {toast.toastType?.charAt(0).toUpperCase() +
-                    toast.toastType?.substring(1)}
-                </p>
-                <p className="mt-0.5 text-sm leading-5 text-slate-600">
+                <p className="text-sm leading-5 font-semibold">{look.title}</p>
+                <p className="mt-0.5 text-sm leading-5 break-words opacity-90">
                   {toast.message}
                 </p>
               </div>
-
               <button
                 type="button"
                 onClick={removeToastMessage}
                 aria-label="Dismiss notification"
-                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                className="-mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-control opacity-70 transition-[opacity,background-color] hover:bg-black/5 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-current"
               >
-                <X className="h-4 w-4" strokeWidth={2.3} />
+                <X aria-hidden="true" className="h-4 w-4" strokeWidth={2.3} />
               </button>
             </div>
-
-            <div
-              className={clsx("absolute right-0 bottom-0 h-1", {
-                "bg-emerald-500/70": toast.toastType === "success",
-                "bg-rose-500/70": toast.toastType === "error",
-                "bg-sky-500/70": toast.toastType === "info",
-              })}
-            />
           </div>
         </div>
       )}

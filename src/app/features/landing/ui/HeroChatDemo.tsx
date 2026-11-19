@@ -311,7 +311,7 @@ export const HeroChatDemo = () => {
       {/* ── A browser window on the store's site (decorative; described above for screen readers) ── */}
       <div
         aria-hidden="true"
-        className="overflow-hidden rounded-xl border border-brand-ink/10 bg-white shadow-[0_24px_48px_-36px_rgba(18,23,42,0.5)]"
+        className="overflow-hidden rounded-card border border-brand-ink/10 bg-white shadow-[0_24px_48px_-36px_rgba(18,23,42,0.5)]"
       >
         <div className="flex items-center gap-3 border-b border-brand-ink/10 bg-brand-mist px-4 py-2.5">
           <span className="flex gap-1.5">
@@ -319,7 +319,7 @@ export const HeroChatDemo = () => {
             <span className="h-2.5 w-2.5 rounded-full bg-brand-ink/15" />
             <span className="h-2.5 w-2.5 rounded-full bg-brand-ink/15" />
           </span>
-          <span className="min-w-0 flex-1 truncate rounded-[5px] border border-brand-ink/10 bg-white px-3 py-1 font-receipt text-[11px] text-[#4B5468]">
+          <span className="min-w-0 flex-1 truncate rounded-control border border-brand-ink/10 bg-white px-3 py-1 font-receipt text-[11px] text-brand-ink-muted">
             yourstore.com
           </span>
         </div>
@@ -334,27 +334,27 @@ export const HeroChatDemo = () => {
               <StoreLogo className={`h-5 w-5 ${accentText}`} />
               Your Store
             </span>
-            <span className="flex gap-4 text-xs text-[#69728A]">
+            <span className="flex gap-4 text-xs text-brand-ink-subtle">
               <span>Shop</span>
               <span>Help</span>
               <span>Cart</span>
             </span>
           </div>
           <div className="absolute inset-x-6 top-[68px] bottom-6 hidden flex-col gap-3 sm:flex">
-            <span className="h-32 rounded-md bg-brand-mist" />
-            <span className="h-3 w-40 rounded-sm bg-brand-ink/10" />
-            <span className="h-3 w-28 rounded-sm bg-brand-ink/10" />
-            <span className="mt-2 h-24 w-28 rounded-md bg-brand-mist" />
-            <span className="h-3 w-24 rounded-sm bg-brand-ink/10" />
+            <span className="h-32 rounded-control bg-brand-mist" />
+            <span className="h-3 w-40 rounded-badge bg-brand-ink/10" />
+            <span className="h-3 w-28 rounded-badge bg-brand-ink/10" />
+            <span className="mt-2 h-24 w-28 rounded-control bg-brand-mist" />
+            <span className="h-3 w-24 rounded-badge bg-brand-ink/10" />
           </div>
 
           {/* The assistant, docked to the right like a chat widget */}
-          <div className="relative mt-4 ml-auto w-full max-w-[400px] overflow-hidden rounded-lg border border-brand-ink/10 bg-white shadow-[0_18px_36px_-18px_rgba(18,23,42,0.45)]">
+          <div className="relative mt-4 ml-auto w-full max-w-[400px] overflow-hidden rounded-box border border-brand-ink/10 bg-white shadow-[0_18px_36px_-18px_rgba(18,23,42,0.45)]">
             <div
               className={`flex items-center gap-3 px-4 py-3.5 ${accentFill}`}
             >
               {/* The store's logo, not ours */}
-              <span className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-control bg-white">
                 <StoreLogo className={`h-5 w-5 ${accentText}`} />
               </span>
               <div className="min-w-0 flex-1">
@@ -375,7 +375,7 @@ export const HeroChatDemo = () => {
             <div className="flex h-[400px] flex-col justify-end sm:h-[340px] gap-3 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_40px)] px-4 py-4 text-sm leading-relaxed">
               {/* The greeting gives way to the answer, so nothing is cut off at the top. */}
               {shown.length === 0 && (
-                <p className="max-w-[85%] self-start rounded-md rounded-bl-none bg-brand-mist px-3.5 py-2.5 text-brand-ink">
+                <p className="max-w-[85%] self-start rounded-control rounded-bl-none bg-brand-mist px-3.5 py-2.5 text-brand-ink">
                   Hi! Ask me anything about orders, shipping or returns.
                 </p>
               )}
@@ -383,14 +383,14 @@ export const HeroChatDemo = () => {
               {asked && (
                 <p
                   key={`question-${view.index}`}
-                  className={`landing-pop max-w-[85%] self-end rounded-md rounded-br-none px-3.5 py-2.5 text-white ${accentFill}`}
+                  className={`landing-pop max-w-[85%] self-end rounded-control rounded-br-none px-3.5 py-2.5 text-white ${accentFill}`}
                 >
                   {demo.question}
                 </p>
               )}
 
               {view.phase === "thinking" && (
-                <span className="landing-pop self-start rounded-md rounded-bl-none bg-brand-mist px-3.5 py-2.5 font-receipt text-xs text-[#4B5468]">
+                <span className="landing-pop self-start rounded-control rounded-bl-none bg-brand-mist px-3.5 py-2.5 font-receipt text-xs text-brand-ink-muted">
                   Reading your sources…
                 </span>
               )}
@@ -400,7 +400,7 @@ export const HeroChatDemo = () => {
                   key={`answer-${view.index}`}
                   className="flex max-w-[94%] flex-col gap-2.5 self-start"
                 >
-                  <p className="rounded-md rounded-bl-none bg-brand-mist px-3.5 py-2.5 text-brand-ink">
+                  <p className="rounded-control rounded-bl-none bg-brand-mist px-3.5 py-2.5 text-brand-ink">
                     <AnswerWords words={shown} />
                     {!done && (
                       <span
@@ -414,10 +414,10 @@ export const HeroChatDemo = () => {
                       {demo.products.map((product) => (
                         <div
                           key={product.name}
-                          className="flex items-center gap-3 rounded-md border border-brand-ink/10 p-2"
+                          className="flex items-center gap-3 rounded-control border border-brand-ink/10 p-2"
                         >
                           <span
-                            className="h-10 w-10 shrink-0 rounded-[4px] p-1"
+                            className="h-10 w-10 shrink-0 rounded-badge p-1"
                             style={{ background: product.backdrop }}
                           >
                             <JacketArt
@@ -430,7 +430,7 @@ export const HeroChatDemo = () => {
                             <span className="block truncate text-xs font-semibold text-brand-ink">
                               {product.name}
                             </span>
-                            <span className="block truncate text-[11px] text-[#4B5468]">
+                            <span className="block truncate text-[11px] text-brand-ink-muted">
                               {product.detail}
                             </span>
                           </span>
@@ -451,20 +451,20 @@ export const HeroChatDemo = () => {
                         return (
                           <span
                             key={source.label}
-                            className="inline-flex items-center gap-1.5 rounded-[4px] border border-brand-ink/15 px-2 py-1 text-[11px] text-[#4B5468]"
+                            className="inline-flex items-center gap-1.5 rounded-badge border border-brand-ink/15 px-2 py-1 text-[11px] text-brand-ink-muted"
                           >
                             <span
                               className={`font-receipt font-medium ${accentText}`}
                             >
                               {i + 1}
                             </span>
-                            <Icon className="h-3 w-3 text-[#69728A]" />
+                            <Icon className="h-3 w-3 text-brand-ink-subtle" />
                             {source.label}
                           </span>
                         );
                       })}
                       {/* How long the reply took */}
-                      <span className="ml-auto py-1 pl-1 font-receipt text-[11px] text-[#69728A]">
+                      <span className="ml-auto py-1 pl-1 font-receipt text-[11px] text-brand-ink-subtle">
                         Answered in {answerSeconds(demo)}s
                       </span>
                     </div>
@@ -474,10 +474,10 @@ export const HeroChatDemo = () => {
             </div>
 
             <div className="border-t border-brand-ink/10 px-3 pt-3 pb-2.5">
-              <div className="flex h-11 items-center gap-2 rounded-md bg-brand-mist pr-1.5 pl-3.5">
+              <div className="flex h-11 items-center gap-2 rounded-control bg-brand-mist pr-1.5 pl-3.5">
                 <p className="min-w-0 flex-1 truncate text-sm text-brand-ink">
                   {typed || (
-                    <span className="text-[#69728A]">Ask a question…</span>
+                    <span className="text-brand-ink-subtle">Ask a question…</span>
                   )}
                   {typed && (
                     <span
@@ -486,12 +486,12 @@ export const HeroChatDemo = () => {
                   )}
                 </p>
                 <span
-                  className={`flex h-8 items-center rounded-[4px] px-3 text-xs font-semibold text-white ${accentFill}`}
+                  className={`flex h-8 items-center rounded-badge px-3 text-xs font-semibold text-white ${accentFill}`}
                 >
                   Send
                 </span>
               </div>
-              <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] text-[#69728A]">
+              <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] text-brand-ink-subtle">
                 Powered by
                 <span className="inline-flex items-center gap-1 font-semibold text-brand-ink">
                   <Image
@@ -510,7 +510,7 @@ export const HeroChatDemo = () => {
 
       {/* ── Controls: pick an example, pause the loop ── */}
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <span className="text-[#4B5468]">Try a question:</span>
+        <span className="text-brand-ink-muted">Try a question:</span>
         <div
           role="group"
           aria-label="Example conversations"
@@ -532,10 +532,10 @@ export const HeroChatDemo = () => {
                   })
                 }
                 className={clsx(
-                  "relative inline-flex h-8 items-center rounded-md border px-3 font-medium transition-colors duration-150",
+                  "relative inline-flex h-8 items-center rounded-control border px-3 font-medium transition-colors duration-150",
                   current
                     ? "border-primary-700 bg-white text-brand-ink"
-                    : "border-brand-ink/15 bg-white text-[#4B5468] hover:border-brand-ink/40 hover:text-brand-ink",
+                    : "border-brand-ink/15 bg-white text-brand-ink-muted hover:border-brand-ink/40 hover:text-brand-ink",
                 )}
               >
                 {item.tab}
@@ -570,7 +570,7 @@ export const HeroChatDemo = () => {
           <button
             type="button"
             onClick={() => setPaused((value) => !value)}
-            className={`ml-auto inline-flex h-8 items-center rounded-sm text-[#4B5468] underline decoration-current/30 underline-offset-4 transition-colors hover:text-brand-ink`}
+            className={`ml-auto inline-flex h-8 items-center rounded-badge text-brand-ink-muted underline decoration-current/30 underline-offset-4 transition-colors hover:text-brand-ink`}
           >
             {paused ? "Play" : "Pause"}
             <span className="sr-only"> the demo</span>
@@ -580,7 +580,7 @@ export const HeroChatDemo = () => {
 
       {/* ── Controls: pick the widget's colour, or let it change on its own ── */}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <span className="text-[#4B5468]">Widget colour:</span>
+        <span className="text-brand-ink-muted">Widget colour:</span>
         <div
           role="group"
           aria-label="Widget colour"
@@ -622,10 +622,10 @@ export const HeroChatDemo = () => {
             aria-pressed={autoColor}
             onClick={() => setAutoColor((value) => !value)}
             className={clsx(
-              "inline-flex h-8 items-center rounded-md border px-3 font-medium transition-colors duration-150",
+              "inline-flex h-8 items-center rounded-control border px-3 font-medium transition-colors duration-150",
               autoColor
                 ? "border-primary-700 bg-primary-700 text-white"
-                : "border-brand-ink/15 bg-white text-[#4B5468] hover:border-brand-ink/40 hover:text-brand-ink",
+                : "border-brand-ink/15 bg-white text-brand-ink-muted hover:border-brand-ink/40 hover:text-brand-ink",
             )}
           >
             Auto

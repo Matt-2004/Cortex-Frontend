@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { newsreader, plexMono } from "@/app/features/landing/fonts";
+import { plexMono, roboto } from "@/app/features/landing/fonts";
 import { ConsoleShell } from "@/app/features/console/ui/ConsoleShell";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function ConsoleLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${newsreader.variable} ${plexMono.variable}`}>
+    <div className={`${roboto.variable} ${plexMono.variable}`}>
       <ConsoleShell>{children}</ConsoleShell>
     </div>
   );

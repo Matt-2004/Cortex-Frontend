@@ -4,12 +4,11 @@ import {
   useEffect,
   useState,
   useSyncExternalStore,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
-import { FileText, Globe, RotateCcw, Type } from "lucide-react";
+import { Check, FileText, Globe, Type } from "lucide-react";
 import {
   Cite,
   DEMO_PRODUCTS,
@@ -27,9 +26,8 @@ import {
  *
  * How a demo runs (useTimeline):
  * - It waits, empty, below the screen; starts once 40% of its frame is in
- *   view; plays once and rests on its last frame. Scrolled fully away, it
- *   resets, so it plays again on the way back. "Replay" restarts it.
- *   Nothing loops, so nothing needs a pause button.
+ *   view; plays once per page visit and rests on its last frame. It never
+ *   replays or loops, so it needs no controls.
  * - Without JavaScript and under reduced motion it shows its last frame:
  *   the finished picture, never an empty box.
  * - Every element is in the layout from the start and only fades, slides or
@@ -40,7 +38,7 @@ import {
  * words), someone clicks (the pointer), a state changes (labels cross-fade).
  *
  * The demos are illustrations: screen readers get the `alt` description, and
- * the controls (Replay, the example requests) are real buttons outside it.
+ * the example requests are real buttons outside it.
  * ──────────────────────────────────────────────────────────── */
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -59,8 +57,7 @@ const useReducedMotion = () =>
   );
 
 /* Every section demo runs for 2.5 seconds in all: each *_STEPS list below adds
-   up to it, so the duration bars all fill at the same pace. (The hero's
-   conversations are longer and time themselves.) */
+   up to it. (The hero's conversations are longer and time themselves.) */
 
 /** How much of the frame must be on screen before its demo starts. */
 const START_AT = 0.4;
@@ -76,31 +73,18 @@ function useTimeline(durations: readonly number[]) {
   // Starts on the last frame, which is what the server renders.
   const [step, setStep] = useState(total);
   const [playing, setPlaying] = useState(false);
-  // Goes up at every start, so the duration bar restarts with the demo.
-  const [run, setRun] = useState(0);
   const reduced = useReducedMotion();
-  const start = () => {
-    setStep(0);
-    setPlaying(true);
-    setRun((value) => value + 1);
-  };
 
   useEffect(() => {
     if (!frame) return;
-    // Whether this visit has started the demo, so it starts once per visit.
-    let started = false;
+    // Empty while it waits off screen; plays once, then stops watching.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.intersectionRatio >= START_AT) {
-          if (started) return;
-          started = true;
+          observer.disconnect();
           setStep(0);
           setPlaying(true);
-          setRun((value) => value + 1);
         } else if (!entry.isIntersecting) {
-          // Fully off screen: empty it, ready for the next visit.
-          started = false;
-          setPlaying(false);
           setStep(0);
         }
       },
@@ -121,19 +105,8 @@ function useTimeline(durations: readonly number[]) {
     on: (n: number) => at >= n,
     /** True only while step n is the current one. */
     during: (n: number) => at === n,
-    replay: start,
     /** Spread onto the demo's <DemoFigure>. */
-    figure: {
-      frameRef: setFrame,
-      onReplay: start,
-      // Under reduced motion there is nothing to replay.
-      canReplay: !reduced,
-      /** How long the demo takes, start to last frame. */
-      totalMs: durations.reduce((sum, ms) => sum + ms, 0),
-      run,
-      progress: (playing ? "running" : step >= total ? "done" : "waiting") as
-        "running" | "done" | "waiting",
-    },
+    figure: { frameRef: setFrame },
   };
 }
 
@@ -208,7 +181,7 @@ const StreamPart = ({
 const Typing = ({ on }: { on: boolean }) => (
   <span
     data-on={on}
-    className="demo-typing absolute top-1/2 left-3.5 flex -translate-y-1/2 gap-1 text-[#4B5468]"
+    className="demo-typing absolute top-1/2 left-3.5 flex -translate-y-1/2 gap-1 text-brand-ink-muted"
   >
     <i />
     <i />
@@ -236,7 +209,7 @@ const Swap = ({
   className?: string;
 }) => (
   <span data-on={on} className={clsx("demo-swap", className)}>
-    <span className="text-[#8B93A8]">{from}</span>
+    <span className="text-brand-ink-faint">{from}</span>
     <span className="text-primary-700">{to}</span>
   </span>
 );
@@ -261,30 +234,17 @@ const Cursor = ({ on, press }: { on: boolean; press: boolean }) => (
 
 /**
  * The frame a demo plays in, with its description for screen readers and
- * the controls under it.
+ * any controls under it.
  */
 const DemoFigure = ({
   frameRef,
-  onReplay,
-  canReplay,
-  totalMs,
-  run,
-  progress,
   alt,
-  dark = false,
   controls,
   children,
 }: {
   frameRef: (node: HTMLDivElement | null) => void;
-  onReplay: () => void;
-  canReplay: boolean;
-  totalMs: number;
-  run: number;
-  progress: "running" | "done" | "waiting";
   alt: string;
-  /** On the deep-teal band. */
-  dark?: boolean;
-  /** Extra controls, left of Replay. */
+  /** Controls under the demo (the example requests). */
   controls?: ReactNode;
   children: ReactNode;
 }) => (
@@ -295,56 +255,16 @@ const DemoFigure = ({
         {children}
       </div>
     </div>
-    {/* How long the demo takes: a line that fills over exactly that time,
-        so nobody waits blind. */}
-    {canReplay && (
-      <div
-        aria-hidden="true"
-        className={clsx(
-          "mx-1 mt-3 h-0.5 overflow-hidden rounded-full",
-          dark ? "bg-white/20" : "bg-brand-ink/10",
-        )}
-      >
-        <span
-          key={run}
-          className={clsx(
-            "block h-full origin-left",
-            dark ? "bg-white" : "bg-brand-teal",
-            progress === "running" && "demo-clock",
-            progress === "waiting" && "scale-x-0",
-          )}
-          style={{ "--fill-ms": `${totalMs}ms` } as CSSProperties}
-        />
-      </div>
+    {controls && (
+      <div className="mt-4 flex flex-wrap items-center gap-2">{controls}</div>
     )}
-    <div className="mt-2 flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <div className="flex flex-wrap items-center gap-2">{controls}</div>
-      {canReplay && (
-        <button
-          type="button"
-          onClick={onReplay}
-          className={clsx(
-            "group ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 font-receipt text-[11px] tracking-[0.06em] uppercase transition-colors duration-150",
-            dark
-              ? "text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-white"
-              : "text-[#4B5468] hover:bg-brand-ink/5 hover:text-brand-ink",
-          )}
-        >
-          <RotateCcw
-            aria-hidden="true"
-            className="h-3 w-3 transition-[rotate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-rotate-180 group-active:-rotate-[360deg]"
-          />
-          Replay
-        </button>
-      )}
-    </div>
   </div>
 );
 
 const userBubble =
-  "max-w-[85%] self-end rounded-md rounded-br-none bg-primary-700 px-3.5 py-2.5 text-white";
+  "max-w-[85%] self-end rounded-control rounded-br-none bg-primary-700 px-3.5 py-2.5 text-white shadow-float";
 const botBubble =
-  "relative max-w-[92%] self-start rounded-md rounded-bl-none border border-brand-ink/10 bg-white px-3.5 py-2.5 text-brand-ink";
+  "relative max-w-[92%] self-start rounded-control rounded-bl-none border border-brand-ink/10 bg-white px-3.5 py-2.5 text-brand-ink shadow-float";
 
 /* ── Purpose: the main feature. Answers can be checked. ──
    The demo: a question; the answer is thought about, then written; its
@@ -360,8 +280,9 @@ export const CitedAnswers = () => {
   return (
     <Section
       id="features"
+      tone="wash"
       pattern="ruled"
-      label="Cited answers"
+      label="Features · Cited answers"
       title="Every answer shows its source"
       lead="Visitors can open the exact passage an answer came from."
       figure={
@@ -383,7 +304,7 @@ export const CitedAnswers = () => {
                 <Step inline on={on(4)}>
                   <span
                     className={clsx(
-                      "inline-block rounded-[4px] transition-shadow duration-200",
+                      "inline-block rounded-badge transition-shadow duration-200",
                       on(6) && "shadow-[0_0_0_2px_var(--brand-teal)]",
                     )}
                   >
@@ -394,7 +315,7 @@ export const CitedAnswers = () => {
               </span>
             </Step>
             <Step on={on(7)} className={`${figureCard} mt-2 p-5`}>
-              <Label className="text-[#4B5468]">
+              <Label className="text-brand-ink-muted">
                 <span className="mr-1.5 text-primary-700">1</span>Returns
                 policy.pdf · page 2
               </Label>
@@ -440,9 +361,8 @@ export const Recommendations = () => {
   return (
     <Section
       id="recommendations"
-      tone="wash"
       pattern="grid"
-      label="Recommendations"
+      label="Features · Recommendations"
       title="Suggests the right product"
       lead="It matches what visitors ask for with items in your catalog."
       figure={
@@ -462,10 +382,9 @@ export const Recommendations = () => {
                   aria-pressed={index === askIndex}
                   onClick={() => {
                     setAskIndex(index);
-                    timeline.replay();
                   }}
                   className={clsx(
-                    "inline-flex h-8 items-center rounded-md border px-3 text-[13px] font-medium transition-[background-color,border-color,color,translate] duration-150 active:translate-y-px",
+                    "inline-flex h-8 items-center rounded-control border px-3 text-[13px] font-medium transition-[background-color,border-color,color,translate] duration-150 active:translate-y-px",
                     index === askIndex
                       ? "border-primary-700 bg-primary-700 text-white"
                       : "border-brand-ink/15 bg-white text-brand-ink hover:border-brand-ink/30",
@@ -498,7 +417,7 @@ export const Recommendations = () => {
                       )}
                     >
                       <div
-                        className="relative h-36 overflow-hidden rounded-md p-3"
+                        className="relative h-36 overflow-hidden rounded-control p-3"
                         style={{ background: product.backdrop }}
                       >
                         <div
@@ -516,7 +435,7 @@ export const Recommendations = () => {
                         <Step
                           inline
                           on={on(5) && match}
-                          className="absolute top-2 left-2 rounded-[3px] bg-white px-1.5 py-0.5 font-receipt text-[10px] text-primary-700"
+                          className="absolute top-2 left-2 rounded-badge bg-white px-1.5 py-0.5 font-receipt text-[10px] text-primary-700"
                         >
                           match
                         </Step>
@@ -524,7 +443,7 @@ export const Recommendations = () => {
                       <p className="mt-3 truncate text-sm font-semibold text-brand-ink">
                         {product.name}
                       </p>
-                      <p className="truncate text-xs text-[#4B5468]">
+                      <p className="truncate text-xs text-brand-ink-muted">
                         {product.detail}
                       </p>
                       <p className="mt-1.5 font-receipt text-sm font-medium text-brand-ink">
@@ -564,7 +483,8 @@ export const WhyCortex = () => {
   return (
     <Section
       id="why-cortex"
-      label="Why Cortex"
+      tone="wash"
+      label="Features · Why Cortex"
       title="A generic chatbot guesses. Cortex checks."
       lead="Answers come only from your content, never from the model’s memory."
       figure={
@@ -575,7 +495,7 @@ export const WhyCortex = () => {
           <div className="flex w-full flex-col gap-4 text-[17px] leading-relaxed">
             <Step on={on(1)} className={`${figureCard} p-6`}>
               <div className="flex items-baseline justify-between">
-                <Label className="text-[#4B5468]">Generic chatbot</Label>
+                <Label className="text-brand-ink-muted">Generic chatbot</Label>
                 <span
                   data-on={on(3)}
                   className="demo-stamp font-display text-xl text-brand-pen italic"
@@ -603,7 +523,7 @@ export const WhyCortex = () => {
                 <Step
                   inline
                   on={on(6)}
-                  className="font-receipt text-[11px] text-[#4B5468]"
+                  className="font-receipt text-[11px] text-brand-ink-muted"
                 >
                   Returns policy.pdf, p. 2
                 </Step>
@@ -674,9 +594,9 @@ export const HowItWorks = () => {
       {SOURCES.map(({ icon: Icon, name }, index) => (
         <li
           key={name}
-          className="flex items-center gap-2.5 rounded-md border border-brand-ink/10 px-3 py-1.5"
+          className="flex items-center gap-2.5 rounded-control border border-brand-ink/10 px-3 py-1.5"
         >
-          <Icon className="h-3.5 w-3.5 shrink-0 text-[#69728A]" />
+          <Icon className="h-3.5 w-3.5 shrink-0 text-brand-ink-subtle" />
           <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-brand-ink">
             {name}
           </span>
@@ -693,13 +613,13 @@ export const HowItWorks = () => {
     <div key="test" className="flex flex-col gap-2 text-[13px] leading-relaxed">
       <Step
         on={on(4)}
-        className="max-w-[85%] self-end rounded-md rounded-br-none bg-primary-700 px-3 py-2 text-white"
+        className="max-w-[85%] self-end rounded-control rounded-br-none bg-primary-700 px-3 py-2 text-white"
       >
         How long do refunds take?
       </Step>
       <Step
         on={on(5)}
-        className="relative self-start rounded-md rounded-bl-none bg-brand-mist px-3 py-2 text-brand-ink"
+        className="relative self-start rounded-control rounded-bl-none bg-brand-mist px-3 py-2 text-brand-ink"
       >
         <Typing on={on(5) && !on(6)} />
         <Stream on={on(6)} text="5–7 business days" />
@@ -707,7 +627,10 @@ export const HowItWorks = () => {
           <Cite n={1} />
         </StreamPart>
       </Step>
-      <Step on={on(7)} className="font-receipt text-[10.5px] text-[#4B5468]">
+      <Step
+        on={on(7)}
+        className="font-receipt text-[10.5px] text-brand-ink-muted"
+      >
         1 · Returns policy.pdf, page 2
       </Step>
     </div>,
@@ -715,13 +638,13 @@ export const HowItWorks = () => {
     /* ILLUSTRATIVE: the widget isn't built yet, so the script URL and
        attribute are placeholders. */
     <div key="embed" className="flex flex-col gap-2">
-      <div className="rounded-md border border-brand-ink/10 bg-brand-mist p-3">
-        <div className="flex items-center justify-between font-receipt text-[10px] text-[#4B5468]">
+      <div className="rounded-control border border-brand-ink/10 bg-brand-mist p-3">
+        <div className="flex items-center justify-between font-receipt text-[10px] text-brand-ink-muted">
           <span>Paste before {"</body>"}</span>
           <span className="relative">
             <span
               className={clsx(
-                "inline-grid rounded-[3px] border px-1.5 py-0.5 transition-[background-color,border-color,color,scale] duration-200",
+                "inline-grid rounded-badge border px-1.5 py-0.5 transition-[background-color,border-color,color,scale] duration-200",
                 on(9)
                   ? "border-primary-700 bg-primary-700 text-white"
                   : "border-brand-ink/15 bg-white text-brand-ink",
@@ -752,23 +675,23 @@ export const HowItWorks = () => {
         <pre className="mt-2 font-receipt text-[11px] leading-relaxed wrap-anywhere whitespace-pre-wrap text-brand-ink">
           <span className="text-primary-700">{"<script"}</span>
           {" src="}
-          <span className="text-[#4B5468]">
+          <span className="text-brand-ink-muted">
             {'"https://cortex.example/widget.js"'}
           </span>
           {"\n  data-site="}
-          <span className="text-[#4B5468]">{'"your-site-id"'}</span>
+          <span className="text-brand-ink-muted">{'"your-site-id"'}</span>
           {" async"}
           <span className="text-primary-700">{"></script>"}</span>
         </pre>
       </div>
-      <div className="flex items-center justify-between rounded-md border border-brand-ink/10 py-1.5 pr-1.5 pl-3">
-        <span className="font-receipt text-[10.5px] text-[#4B5468]">
+      <div className="flex items-center justify-between rounded-control border border-brand-ink/10 py-1.5 pr-1.5 pl-3">
+        <span className="font-receipt text-[10.5px] text-brand-ink-muted">
           yourstore.com
         </span>
         <Step
           inline
           on={on(10)}
-          className="rounded-md bg-brand-teal px-3 py-1.5 text-[11px] font-semibold text-brand-ink"
+          className="rounded-control bg-brand-teal px-3 py-1.5 text-[11px] font-semibold text-brand-ink"
         >
           Ask us anything
         </Step>
@@ -782,14 +705,13 @@ export const HowItWorks = () => {
       stepBadge,
       done || index <= phase
         ? "bg-primary-700 text-white"
-        : "bg-white text-[#4B5468] shadow-[inset_0_0_0_1px_rgba(18,23,42,0.2)]",
+        : "bg-white text-brand-ink-muted shadow-[inset_0_0_0_1px_rgba(18,23,42,0.2)]",
       !done && index === phase && "scale-110",
     );
 
   return (
     <Section
       id="how-it-works"
-      tone="wash"
       pattern="dots"
       label="How it works"
       title="Set up in three steps"
@@ -817,10 +739,10 @@ export const HowItWorks = () => {
                   <div className={clsx("min-w-0 flex-1", !last && "pb-4")}>
                     <div
                       className={clsx(
-                        "rounded-lg border bg-white p-4 transition-[border-color,opacity,box-shadow,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "rounded-box border bg-white p-4 transition-[border-color,opacity,box-shadow,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
                         !done && index === phase
-                          ? "-translate-y-0.5 border-brand-teal shadow-[0_18px_30px_-18px_rgba(18,23,42,0.4)]"
-                          : "border-brand-ink/10 shadow-[0_12px_24px_-18px_rgba(18,23,42,0.35)]",
+                          ? "-translate-y-0.5 border-brand-teal shadow-float-raised"
+                          : "border-brand-ink/10 shadow-float",
                         !done && index > phase && "opacity-55",
                       )}
                     >
@@ -847,12 +769,100 @@ export const HowItWorks = () => {
               <p className="text-lg leading-8 font-medium text-brand-ink">
                 {step.title}
               </p>
-              <p className="text-[15px] text-[#4B5468]">{step.detail}</p>
+              <p className="text-[15px] text-brand-ink-muted">{step.detail}</p>
             </div>
           </li>
         ))}
       </ol>
     </Section>
+  );
+};
+
+/* ── Purpose: the business case. What a company saves by not building it. ──
+   The demo: the work of building your own assistant is listed row by row;
+   then, row by row, what that becomes with Cortex; last, what is left for
+   the customer to do is marked. */
+
+const COMPARE = [
+  { area: "Cost", diy: "Developers for months", cortex: "One monthly plan" },
+  {
+    area: "Complexity",
+    diy: "Search, AI model, servers",
+    cortex: "Handled by Cortex",
+  },
+  { area: "Launch", diy: "A full release", cortex: "One line of code" },
+  {
+    area: "Upkeep",
+    diy: "Ongoing fixes and updates",
+    cortex: "Included",
+  },
+];
+
+// 1 card · 2–5 the build-it-yourself rows · 6–9 the Cortex column · 10 your part
+const VALUE_STEPS = [180, 200, 200, 200, 200, 250, 250, 250, 250, 520] as const;
+
+export const BusinessValue = () => {
+  const timeline = useTimeline(VALUE_STEPS);
+  const { on } = timeline;
+  return (
+    <Section
+      id="business-value"
+      label="Business value"
+      title="An assistant without an AI project"
+      lead="Cortex is ready to use, so you skip the cost and work of building one yourself."
+      figure={
+        <DemoFigure
+          {...timeline.figure}
+          alt="Building your own assistant means developers for months, running search, AI models and servers, a full release and ongoing fixes. With Cortex it is one monthly plan, handled for you, one line of code, with upkeep included."
+        >
+          <Step on={on(1)} className={`${figureCard} p-5 sm:p-6`}>
+            <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 sm:gap-x-4">
+              <span />
+              <Label className="text-brand-ink-muted">Build your own</Label>
+              <Label className="text-primary-700">With Cortex</Label>
+              {COMPARE.map((row, index) => (
+                <div
+                  key={row.area}
+                  className="col-span-3 grid grid-cols-subgrid items-baseline border-t border-brand-ink/10 py-3 text-[13px] leading-snug first:mt-3 sm:text-[15px]"
+                >
+                  <Step inline on={on(2 + index)}>
+                    <span className="font-receipt text-[10.5px] tracking-[0.06em] text-brand-ink-muted uppercase sm:text-[11px]">
+                      {row.area}
+                    </span>
+                  </Step>
+                  <Step
+                    on={on(2 + index)}
+                    className={clsx(
+                      "transition-colors duration-500",
+                      on(6 + index) ? "text-brand-ink-faint" : "text-brand-ink",
+                    )}
+                  >
+                    {row.diy}
+                  </Step>
+                  <Step
+                    on={on(6 + index)}
+                    className="flex items-baseline gap-1.5 font-medium text-brand-ink"
+                  >
+                    <Check
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 shrink-0 translate-y-0.5 text-primary-700"
+                    />
+                    {row.cortex}
+                  </Step>
+                </div>
+              ))}
+            </div>
+            <Step
+              on={on(10)}
+              className="mt-1 border-t border-brand-ink/10 pt-4 text-[15px] text-brand-ink sm:text-[17px]"
+            >
+              Your part:{" "}
+              <Highlight on={on(10)}>add content, paste one line</Highlight>
+            </Step>
+          </Step>
+        </DemoFigure>
+      }
+    />
   );
 };
 
@@ -876,14 +886,13 @@ export const GetStarted = () => {
       lead="Upload a file and ask the question your customers ask most."
       figure={
         <DemoFigure
-          dark
           {...timeline.figure}
           alt="A policy document is dropped into the upload area, read, and indexed."
         >
           <div className={`${figureCard} p-5`}>
             <div
               className={clsx(
-                "relative flex flex-col items-center rounded-md border border-dashed px-6 py-12 text-center transition-[border-color,background-color,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                "relative flex flex-col items-center rounded-control border border-dashed px-6 py-12 text-center transition-[border-color,background-color,scale] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 during(1)
                   ? "scale-[1.02] border-primary-700 bg-[#E6F7F4]"
                   : "border-brand-ink/25",
@@ -893,13 +902,15 @@ export const GetStarted = () => {
               <p className="mt-3 text-sm font-semibold text-brand-ink">
                 Drop a policy document
               </p>
-              <p className="mt-1 text-xs text-[#4B5468]">PDF, up to 20 MB</p>
+              <p className="mt-1 text-xs text-brand-ink-muted">
+                PDF, up to 20 MB
+              </p>
 
               {/* The file being carried in: it comes from the upper right,
                   hovers, and is let go into the list below. */}
               <span
                 className={clsx(
-                  "pointer-events-none absolute top-1/2 left-1/2 inline-flex items-center gap-2 rounded-md border border-brand-ink/15 bg-white px-3 py-2 text-xs font-medium text-brand-ink shadow-[0_14px_24px_-12px_rgba(18,23,42,0.45)] transition-[opacity,translate,rotate,scale] ease-[cubic-bezier(0.65,0,0.35,1)]",
+                  "pointer-events-none absolute top-1/2 left-1/2 inline-flex items-center gap-2 rounded-control border border-brand-ink/15 bg-white px-3 py-2 text-xs font-medium text-brand-ink shadow-[0_14px_24px_-12px_rgba(18,23,42,0.45)] transition-[opacity,translate,rotate,scale] ease-[cubic-bezier(0.65,0,0.35,1)]",
                   during(1)
                     ? "-translate-x-1/2 -translate-y-1/2 -rotate-3 opacity-100 duration-700"
                     : on(2)
@@ -907,16 +918,16 @@ export const GetStarted = () => {
                       : "translate-x-16 -translate-y-24 rotate-6 opacity-0 duration-200",
                 )}
               >
-                <FileText className="h-3.5 w-3.5 text-[#69728A]" />
+                <FileText className="h-3.5 w-3.5 text-brand-ink-subtle" />
                 Returns policy.pdf
                 <Cursor on={during(1)} press={false} />
               </span>
             </div>
             <Step
               on={on(2)}
-              className="relative mt-3 flex items-center gap-3 overflow-hidden rounded-md border border-brand-ink/10 px-3 py-3"
+              className="relative mt-3 flex items-center gap-3 overflow-hidden rounded-control border border-brand-ink/10 px-3 py-3"
             >
-              <FileText className="h-4 w-4 shrink-0 text-[#69728A]" />
+              <FileText className="h-4 w-4 shrink-0 text-brand-ink-subtle" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-brand-ink">
                 Returns policy.pdf
               </span>

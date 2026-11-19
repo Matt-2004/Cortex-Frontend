@@ -3,12 +3,14 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 import { organizationsApi } from "../api/organizationsApi";
 import { useResource } from "@/app/features/console/hooks/useResource";
 import {
   ADMIN,
+  MEMBER,
   OWNER,
+  canEditMember,
   canManage,
   type OrganizationMember,
   type OrganizationRole,
@@ -16,12 +18,17 @@ import {
 import { useConsoleUser } from "@/app/features/console/ui/ConsoleShell";
 import {
   Avatar,
+  Badge,
+  EmptyTableRow,
   ErrorState,
   Notice,
   Panel,
+  PanelHeader,
+  RoleBadge,
   SearchInput,
   SkeletonRows,
   formatDate,
+  inputLook,
   mutedText,
   rowLook,
   tableLook,
@@ -29,10 +36,33 @@ import {
   thLook,
 } from "@/app/features/console/ui/consoleUi";
 
-/** Show a search box once the list is longer than this. */
-const SEARCH_FROM = 5;
+/** Below these widths a column hides; what it held moves under the name. */
+const EMAIL_COL = "hidden md:table-cell";
+const ID_COL = "hidden xl:table-cell";
+const JOINED_COL = "hidden lg:table-cell";
 
-const MEMBER_COLUMNS = ["", "hidden md:table-cell", "w-10"];
+const MEMBER_COLUMNS = [
+  "hidden w-12 sm:table-cell",
+  "",
+  EMAIL_COL,
+  ID_COL,
+  "w-24 sm:w-28",
+  JOINED_COL,
+  "w-12",
+];
+
+const ROLE_FILTERS: { value: OrganizationRole; label: string }[] = [
+  { value: OWNER, label: "Owner" },
+  { value: ADMIN, label: "Admin" },
+  { value: MEMBER, label: "Member" },
+];
+
+/** Owners first, then admins, then members; unknown roles count as members. */
+const rank = (role: OrganizationRole) =>
+  role === OWNER ? 0 : role === ADMIN ? 1 : 2;
+
+const matchesRole = (role: OrganizationRole, filter: OrganizationRole) =>
+  rank(role) === rank(filter);
 
 export const displayName = (member: OrganizationMember) =>
   member.name.trim() || member.email;
@@ -41,9 +71,10 @@ export const memberPath = (organizationId: string, memberUserId: string) =>
   `/console/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(memberUserId)}`;
 
 /**
- * The Members tab: who is in the organization. The tables are read-only;
- * a row opens the member's own page, where their role is changed or they are
- * removed. People join by invitation (the Invitations tab).
+ * The Members tab: who is in the organization, in one table ranked owners →
+ * admins → members, with a search and a role filter above it. Rows are
+ * read-only; a row opens the member's own page, where their role is changed
+ * or they are removed. People join by invitation (the Invitations tab).
  */
 export const MembersPanel = ({
   organizationId,
@@ -65,24 +96,38 @@ export const MembersPanel = ({
   const { resource, retry } = useResource(load);
 
   const [query, setQuery] = useState("");
+  const [role, setRole] = useState<OrganizationRole | null>(null);
   const needle = query.trim().toLowerCase();
+  const filtering = Boolean(needle) || role !== null;
   const total = resource.status === "ready" ? resource.data.length : null;
   const visible =
     resource.status === "ready"
-      ? resource.data.filter(
-          (member) =>
-            !needle ||
-            member.name.toLowerCase().includes(needle) ||
-            member.email.toLowerCase().includes(needle),
-        )
+      ? resource.data
+          .filter(
+            (member) =>
+              (role === null || matchesRole(member.role, role)) &&
+              (!needle ||
+                member.name.toLowerCase().includes(needle) ||
+                member.email.toLowerCase().includes(needle)),
+          )
+          .sort(
+            (a, b) =>
+              rank(a.role) - rank(b.role) ||
+              displayName(a).localeCompare(displayName(b)),
+          )
       : [];
 
   const isSelf = (member: OrganizationMember) =>
     member.userId === user.id ||
     member.email.toLowerCase() === user.email.toLowerCase();
 
+  const clear = () => {
+    setQuery("");
+    setRole(null);
+  };
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {!manageable && (
         <Notice>
           You are a member of {organizationName}. Owners and admins invite
@@ -97,140 +142,128 @@ export const MembersPanel = ({
           onRetry={retry}
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-end justify-between gap-4">
-            <div className="flex items-baseline gap-3">
-              <h2 className="text-lg font-semibold">People</h2>
-              {total !== null && total > 0 && (
-                <p className={clsx("text-sm tabular-nums", mutedText)}>
-                  {needle && visible.length !== total
-                    ? `${visible.length} of ${total}`
-                    : total}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {total !== null && total > SEARCH_FROM && (
-            <SearchInput
-              label="Search members"
-              placeholder="Search by name or email"
-              value={query}
-              onChange={setQuery}
-              className="sm:w-80"
-            />
-          )}
-
-          {resource.status === "loading" ? (
-            <RoleTable title="Owners" loading />
-          ) : needle && visible.length === 0 ? (
-            <Panel className="px-6 py-10 text-center">
-              <p className="text-sm font-medium">
-                No one matches &ldquo;{query.trim()}&rdquo;
-              </p>
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="mt-1 text-sm font-medium text-primary-700 underline decoration-current/30 underline-offset-4 hover:decoration-current"
-              >
-                Clear search
-              </button>
-            </Panel>
-          ) : (
-            // Highest rank first: owners, then admins, then members.
-            GROUPS.map((group) => {
-              const people = visible.filter((m) => group.match(m.role));
-              // While searching, hide the groups with no matches.
-              if (needle && people.length === 0) return null;
-              return (
-                <RoleTable
-                  key={group.title}
-                  title={group.title}
-                  empty={group.empty}
-                  members={people}
-                  organizationId={organizationId}
-                  isSelf={isSelf}
-                />
-              );
-            })
-          )}
-        </div>
+        <>
+          <MembersTable
+            loading={resource.status === "loading"}
+            header={
+              <PanelHeader
+                title="Members"
+                count={total}
+                description={
+                  filtering && total !== null
+                    ? `Showing ${visible.length} of ${total}`
+                    : undefined
+                }
+                actions={
+                  <>
+                    <SearchInput
+                      label="Search members"
+                      placeholder="Search name or email"
+                      value={query}
+                      onChange={setQuery}
+                      className="sm:w-60"
+                    />
+                    <select
+                      aria-label="Filter by role"
+                      value={role ?? ""}
+                      onChange={(event) =>
+                        setRole(
+                          event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        )
+                      }
+                      className={clsx(inputLook, "w-full pr-8 sm:w-32")}
+                    >
+                      <option value="">All roles</option>
+                      {ROLE_FILTERS.map((entry) => (
+                        <option key={entry.value} value={entry.value}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                }
+              />
+            }
+            members={visible}
+            organizationId={organizationId}
+            isSelf={isSelf}
+            canEdit={(member) => canEditMember(viewerRole, member.role)}
+            empty={
+              filtering ? (
+                <EmptyTableRow colSpan={7} title="No one matches">
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="font-medium text-primary-700 underline decoration-current/30 underline-offset-4 hover:decoration-current"
+                  >
+                    Clear filters
+                  </button>
+                </EmptyTableRow>
+              ) : (
+                <EmptyTableRow colSpan={7} title="No people yet" />
+              )
+            }
+          />
+        </>
       )}
     </div>
   );
 };
 
-const GROUPS: {
-  title: string;
-  empty: string;
-  match: (role: OrganizationRole) => boolean;
-}[] = [
-  { title: "Owners", empty: "No owners", match: (r) => r === OWNER },
-  { title: "Admins", empty: "No admins yet", match: (r) => r === ADMIN },
-  {
-    title: "Members",
-    empty: "No members yet",
-    // Unknown roles land here too, so nobody disappears from the page.
-    match: (r) => r !== OWNER && r !== ADMIN,
-  },
-];
-
-/** One rank's table. The rank is the heading, so the rows carry no badge. */
-const RoleTable = ({
-  title,
-  empty,
-  members = [],
-  organizationId = "",
-  isSelf = () => false,
+const MembersTable = ({
+  members,
+  organizationId,
+  isSelf,
+  canEdit,
   loading,
+  empty,
+  header,
 }: {
-  title: string;
-  empty?: string;
-  members?: OrganizationMember[];
-  organizationId?: string;
-  isSelf?: (member: OrganizationMember) => boolean;
-  loading?: boolean;
+  members: OrganizationMember[];
+  organizationId: string;
+  isSelf: (member: OrganizationMember) => boolean;
+  /** Whether the viewer can change this member (role, removal). */
+  canEdit: (member: OrganizationMember) => boolean;
+  loading: boolean;
+  empty: React.ReactNode;
+  header: React.ReactNode;
 }) => (
   <Panel className="overflow-hidden">
-    <section aria-label={title}>
-      <table className={clsx(tableLook, "table-fixed")}>
-        <caption className="border-b border-brand-ink/10 px-4 py-3 text-left sm:px-6">
-          <span className="text-sm font-semibold text-brand-ink">{title}</span>
-          {!loading && (
-            <span className={clsx("ml-2 text-sm tabular-nums", mutedText)}>
-              {members.length}
-            </span>
-          )}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" className={thLook}>
-              Name
-            </th>
-            <th
-              scope="col"
-              className={clsx(thLook, "hidden w-40 md:table-cell")}
-            >
-              Joined
-            </th>
-            <th scope="col" className={clsx(thLook, "w-10")}>
-              <span className="sr-only">Open</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody aria-busy={loading}>
-          {loading && <SkeletonRows columns={MEMBER_COLUMNS} />}
-          {!loading && members.length === 0 && (
-            <tr>
-              <td
-                colSpan={3}
-                className={clsx("px-4 py-5 text-sm sm:px-6", mutedText)}
-              >
-                {empty}
-              </td>
-            </tr>
-          )}
-          {members.map((member, index) => (
+    {header}
+    <table className={clsx(tableLook, "table-fixed")}>
+      <caption className="sr-only">People in this organization</caption>
+      <thead>
+        <tr>
+          <th scope="col" className={clsx(thLook, "hidden w-12 sm:table-cell")}>
+            #
+          </th>
+          <th scope="col" className={thLook}>
+            Name
+          </th>
+          <th scope="col" className={clsx(thLook, EMAIL_COL)}>
+            Email
+          </th>
+          <th scope="col" className={clsx(thLook, ID_COL, "w-44")}>
+            ID
+          </th>
+          <th scope="col" className={clsx(thLook, "w-24 sm:w-28")}>
+            Role
+          </th>
+          <th scope="col" className={clsx(thLook, JOINED_COL, "w-36")}>
+            Joined
+          </th>
+          <th scope="col" className={clsx(thLook, "w-12")}>
+            <span className="sr-only">Action</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody aria-busy={loading}>
+        {loading && <SkeletonRows columns={MEMBER_COLUMNS} />}
+        {!loading && members.length === 0 && empty}
+        {!loading &&
+          members.map((member, index) => (
             <tr
               key={member.userId}
               style={{ "--row": index } as React.CSSProperties}
@@ -239,6 +272,15 @@ const RoleTable = ({
                 "console-row-in group relative hover:bg-brand-wash/50",
               )}
             >
+              <td
+                className={clsx(
+                  tdLook,
+                  "hidden tabular-nums sm:table-cell",
+                  mutedText,
+                )}
+              >
+                {index + 1}
+              </td>
               <td className={tdLook}>
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar name={displayName(member)} src={member.avatarUrl} />
@@ -250,38 +292,66 @@ const RoleTable = ({
                         className="truncate after:absolute after:inset-0"
                       >
                         {displayName(member)}
+                        <span className="sr-only">
+                          {canEdit(member) ? " (edit)" : " (view)"}
+                        </span>
                       </Link>
                       {isSelf(member) && (
-                        <span className="shrink-0 rounded-[4px] bg-brand-wash px-1.5 py-0.5 text-[11px] font-medium text-primary-800">
-                          You
-                        </span>
+                        <Badge className="shrink-0">You</Badge>
                       )}
                     </p>
-                    <p className={clsx("truncate text-xs", mutedText)}>
+                    {/* Narrow screens have no email column. */}
+                    <p
+                      className={clsx("truncate text-xs md:hidden", mutedText)}
+                    >
                       {member.email}
                     </p>
                   </div>
                 </div>
               </td>
+              <td className={clsx(tdLook, EMAIL_COL, mutedText)}>
+                <p className="truncate">{member.email}</p>
+              </td>
+              <td className={clsx(tdLook, ID_COL, mutedText)}>
+                <p
+                  title={member.userId}
+                  translate="no"
+                  className="truncate font-receipt text-xs"
+                >
+                  {member.userId}
+                </p>
+              </td>
+              <td className={tdLook}>
+                <RoleBadge role={member.role} />
+              </td>
               <td
                 className={clsx(
                   tdLook,
-                  "hidden whitespace-nowrap md:table-cell",
+                  JOINED_COL,
+                  "whitespace-nowrap",
                   mutedText,
                 )}
               >
                 {formatDate(member.joinedAt)}
               </td>
-              <td className={clsx(tdLook, "w-10")}>
-                <ChevronRight
-                  aria-hidden="true"
-                  className="h-4 w-4 text-[#8B93A8] transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary-700"
-                />
+              <td className={clsx(tdLook, "w-12 pl-0 text-right")}>
+                {/* Pencil: this row opens a page where you can change the
+                    member. Chevron: it opens their details only. */}
+                {canEdit(member) ? (
+                  <Pencil
+                    aria-hidden="true"
+                    className="ml-auto h-4 w-4 text-brand-ink-faint transition-colors duration-150 group-hover:text-primary-700"
+                  />
+                ) : (
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="ml-auto h-4 w-4 text-brand-ink-faint transition-transform duration-150 group-hover:translate-x-0.5"
+                  />
+                )}
               </td>
             </tr>
           ))}
-        </tbody>
-      </table>
-    </section>
+      </tbody>
+    </table>
   </Panel>
 );

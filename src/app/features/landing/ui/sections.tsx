@@ -38,7 +38,7 @@ export const Faq = () => (
   <section
     id="faq"
     aria-labelledby="faq-title"
-    className={`${sectionShell} bg-brand-wash`}
+    className={`${sectionShell} bg-white`}
   >
     <Container>
       <Label className="text-primary-700">FAQ</Label>
@@ -57,16 +57,16 @@ export const Faq = () => (
             open={index === 0}
             className="group border-t border-brand-ink/15"
           >
-            <summary className="flex cursor-pointer list-none items-baseline justify-between gap-6 rounded-sm py-6 font-display text-2xl leading-snug tracking-[-0.01em] text-brand-ink sm:text-[1.75rem] [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-baseline justify-between gap-6 rounded-badge py-6 font-display text-2xl leading-snug tracking-[-0.01em] text-brand-ink sm:text-[1.75rem] [&::-webkit-details-marker]:hidden">
               {q}
               <span
                 aria-hidden="true"
-                className="font-receipt text-2xl text-[#4B5468] transition-transform duration-200 group-open:rotate-45 group-open:text-primary-700"
+                className="font-receipt text-2xl text-brand-ink-muted transition-transform duration-200 group-open:rotate-45 group-open:text-primary-700"
               >
                 +
               </span>
             </summary>
-            <p className="max-w-3xl pb-7 text-lg leading-relaxed text-[#4B5468]">
+            <p className="max-w-3xl pb-7 text-lg leading-relaxed text-brand-ink-muted">
               {a}
             </p>
           </details>
