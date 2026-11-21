@@ -8,6 +8,7 @@ import {
   SIGN_IN_PATH,
   useApiErrorHandler,
 } from "@/app/shared/hooks/useApiErrorHandler";
+import { returnToFromLocation } from "@/app/shared/utils/returnTo";
 import { authApi } from "../../api/authApi";
 import { PATH_AFTER_SIGN_IN } from "../../signIn/hooks/useSignIn";
 
@@ -38,7 +39,8 @@ export const useGoogleSession = () => {
       try {
         await authApi.googleSession({ idToken });
         addToastMessage("success", "Signed in.");
-        router.replace(PATH_AFTER_SIGN_IN);
+        // The Google button's callbackUrl may carry ?returnTo= (an invitation).
+        router.replace(returnToFromLocation() ?? PATH_AFTER_SIGN_IN);
       } catch (error) {
         setFailed(true);
         handleApiError(error);
