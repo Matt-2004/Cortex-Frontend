@@ -160,6 +160,11 @@ export interface InvitationPreview {
   invitedByName: string;
   /** ISO 8601 date-time. */
   expiresAt: string;
+  /**
+   * A verified account already uses the invited email: sign in and accept.
+   * When false, register from the invitation instead.
+   */
+  accountExists: boolean;
 }
 
 // ─── Requests (from the OpenAPI document) ────────────────────────────

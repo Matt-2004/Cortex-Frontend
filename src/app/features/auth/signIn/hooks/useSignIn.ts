@@ -5,6 +5,7 @@ import { useAuthForm } from "../../../../shared/hooks/useAuthForm";
 import { useToast } from "@/app/features/toast/hooks/useToast";
 import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
 import { focusFirstInvalidField } from "@/app/shared/utils/focusFirstInvalid";
+import { returnToFromLocation } from "@/app/shared/utils/returnTo";
 import { authApi } from "../../api/authApi";
 import type { LoginRequest } from "../../types/auth-api.types";
 
@@ -66,7 +67,8 @@ export const useSignIn = () => {
       await authApi.login({ email, password: formData.password });
       succeeded = true;
       addToastMessage("success", "Signed in.");
-      router.push(PATH_AFTER_SIGN_IN);
+      // e.g. back to an invitation; a missing or unsafe ?returnTo= is ignored.
+      router.push(returnToFromLocation() ?? PATH_AFTER_SIGN_IN);
     } catch (error) {
       handleApiError(error, {
         onFieldErrors: (errors) => {
