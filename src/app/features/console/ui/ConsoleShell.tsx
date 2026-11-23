@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useState,
-  useSyncExternalStore,
   Suspense,
   type ReactNode,
 } from "react";
@@ -40,13 +39,12 @@ import { Avatar, ErrorState, Skeleton, Spinner, mutedText } from "./consoleUi";
 const ConsoleUserContext = createContext<User | null>(null);
 
 /**
- * What the signed-in user may see of the Organizations area, from their
- * roles across all their organizations:
- * - "manager": owner or admin somewhere → sees Organizations.
- * - "none": in no organization yet → sees it, to create their first.
- * - "member-only": only ever a plain member → it is hidden.
- * - "unknown": still loading → the sidebar shows what the last visit found
- *   (see useShowsOrganizationsTab), so the tab doesn't wait for the backend.
+ * The signed-in user's standing across all their organizations. It never
+ * hides the Organizations tab: a plain member still belongs to theirs.
+ * - "manager": owner or admin somewhere.
+ * - "none": in no organization yet.
+ * - "member-only": only ever a plain member.
+ * - "unknown": still loading.
  */
 export type OrganizationAccess = "unknown" | "manager" | "none" | "member-only";
 
@@ -61,42 +59,6 @@ export const useOrganizationAccess = () =>
 
 export const canSeeOrganizations = (access: OrganizationAccess) =>
   access === "manager" || access === "none";
-
-/* The sidebar doesn't wait for the backend to show the Organizations tab:
-   it starts from the answer of the last visit, kept in this browser. Only a
-   remembered "member-only" hides it; with no memory it shows, since most
-   users may open it and the pages themselves say when they may not. */
-const ACCESS_KEY = "cortex.organizationAccess";
-
-const rememberAccess = (access: OrganizationAccess) => {
-  try {
-    window.localStorage.setItem(ACCESS_KEY, access);
-  } catch {
-    // Storage blocked (private window…): the tab just shows by default.
-  }
-};
-
-const readRememberedAccess = () => {
-  try {
-    return window.localStorage.getItem(ACCESS_KEY);
-  } catch {
-    return null;
-  }
-};
-
-// Nothing to subscribe to: it is read once, before the backend answers.
-const subscribeToNothing = () => () => {};
-
-/** Whether the sidebar lists Organizations, known or not yet. */
-const useShowsOrganizationsTab = () => {
-  const { access } = useOrganizationAccess();
-  const remembered = useSyncExternalStore(
-    subscribeToNothing,
-    readRememberedAccess,
-    () => null,
-  );
-  return (access === "unknown" ? remembered : access) !== "member-only";
-};
 
 /** The signed-in user. Only available inside <SignedIn>. */
 export function useConsoleUser(): User {
@@ -192,55 +154,47 @@ const NavList = ({
 }: {
   pathname: string;
   onNavigate?: () => void;
-}) => {
-  const showsOrganizations = useShowsOrganizationsTab();
-  return (
-    <nav aria-label="Console" className="flex flex-col gap-5">
-      {NAV.map(({ heading, items }, index) => (
-        <div
-          key={heading}
-          className={clsx(index > 0 && "border-t border-brand-ink/10 pt-5")}
-        >
-          <h2 className="sr-only">{heading}</h2>
-          <ul className="flex flex-col gap-0.5">
-            {items
-              .filter(
-                ({ href }) =>
-                  href !== "/console/organizations" || showsOrganizations,
-              )
-              .map(({ href, label, icon: Icon }) => {
-                const active = isActive(pathname, href);
-                return (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      className={clsx(
-                        "flex h-10 items-center gap-3 rounded-control px-3 text-sm transition-colors duration-150",
-                        active
-                          ? "bg-brand-wash font-medium text-primary-800"
-                          : "text-brand-ink-muted hover:bg-brand-mist hover:text-brand-ink",
-                      )}
-                    >
-                      <Icon
-                        aria-hidden="true"
-                        className={clsx(
-                          "h-4 w-4 shrink-0",
-                          active ? "text-primary-700" : "text-brand-ink-subtle",
-                        )}
-                      />
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
-      ))}
-    </nav>
-  );
-};
+}) => (
+  <nav aria-label="Console" className="flex flex-col gap-5">
+    {NAV.map(({ heading, items }, index) => (
+      <div
+        key={heading}
+        className={clsx(index > 0 && "border-t border-brand-ink/10 pt-5")}
+      >
+        <h2 className="sr-only">{heading}</h2>
+        <ul className="flex flex-col gap-0.5">
+          {items.map(({ href, label, icon: Icon }) => {
+            const active = isActive(pathname, href);
+            return (
+              <li key={href}>
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={clsx(
+                    "flex h-10 items-center gap-3 rounded-control px-3 text-sm transition-colors duration-150",
+                    active
+                      ? "bg-brand-wash font-medium text-primary-800"
+                      : "text-brand-ink-muted hover:bg-brand-mist hover:text-brand-ink",
+                  )}
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className={clsx(
+                      "h-4 w-4 shrink-0",
+                      active ? "text-primary-700" : "text-brand-ink-subtle",
+                    )}
+                  />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ))}
+  </nav>
+);
 
 /**
  * Frame around every console screen: a left sidebar (a drawer below lg) and
@@ -257,8 +211,8 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [access, setAccess] = useState<OrganizationAccess>("unknown");
 
-  // Roles decide whether Organizations shows. If the list can't be read,
-  // fall back to showing it: the backend still refuses what isn't allowed.
+  // If the list can't be read, assume the wider access: the backend still
+  // refuses what isn't allowed.
   const loadAccess = useCallback(async () => {
     try {
       const organizations = await organizationsApi.list();
@@ -269,7 +223,6 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
             ? "manager"
             : "member-only";
       setAccess(next);
-      rememberAccess(next);
     } catch {
       setAccess("manager");
     }

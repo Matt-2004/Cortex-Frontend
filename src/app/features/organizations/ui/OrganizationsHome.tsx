@@ -25,7 +25,6 @@ import {
   Avatar,
   EmptyTableRow,
   ErrorState,
-  NoAccess,
   Field,
   Modal,
   Panel,
@@ -127,17 +126,6 @@ const Organizations = () => {
             title="Your organizations could not be loaded"
             message={resource.error.message}
             onRetry={retry}
-          />
-        </Container>
-      ) : resource.status === "ready" &&
-        resource.data.length > 0 &&
-        !resource.data.some((o) => canManage(o.role)) ? (
-        <Container className="py-6">
-          <NoAccess
-            title="Organizations are managed by owners and admins"
-            message="You are a member of your organizations, so there is nothing to manage here. Ask an owner if you need access."
-            backHref="/console"
-            backLabel="Back to overview"
           />
         </Container>
       ) : (
