@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { clsx } from "clsx";
+import {
+  returnToFromLocation,
+  withReturnTo,
+} from "@/app/shared/utils/returnTo";
 
 /** Exchanges the Google ID token for Cortex session cookies. */
 export const GOOGLE_CALLBACK_PATH = "/auth/google/callback";
@@ -50,7 +54,14 @@ export const GoogleSignInButton = ({
       aria-busy={isRedirecting}
       onClick={() => {
         setIsRedirecting(true);
-        signIn("google", { callbackUrl }).catch(() => setIsRedirecting(false));
+        // An explicit callbackUrl (an invitation) already says where to return.
+        const returnTo =
+          callbackUrl === GOOGLE_CALLBACK_PATH ? returnToFromLocation() : null;
+        signIn("google", {
+          callbackUrl: returnTo
+            ? withReturnTo(callbackUrl, returnTo)
+            : callbackUrl,
+        }).catch(() => setIsRedirecting(false));
       }}
       className={clsx(
         "group relative flex h-11 w-full items-center justify-center gap-3 rounded-control px-4",

@@ -8,8 +8,22 @@ import {
   isAbortError,
   toApiError,
 } from "@/app/shared/utils/errors/apiError";
+import { safeReturnTo, withReturnTo } from "@/app/shared/utils/returnTo";
 
 export const SIGN_IN_PATH = "/auth/login";
+
+/**
+ * Sign-in URL for a session that just failed, returning to the current page.
+ * `session=ended` tells the proxy to show the form even if stale cookies
+ * remain; otherwise it would send the user straight back here, in a loop.
+ */
+export const sessionEndedSignInPath = () => {
+  const path = `${SIGN_IN_PATH}?session=ended`;
+  const returnTo = safeReturnTo(
+    `${window.location.pathname}${window.location.search}`,
+  );
+  return returnTo ? withReturnTo(path, returnTo) : path;
+};
 
 export interface HandleApiErrorOptions {
   /**
@@ -54,7 +68,7 @@ export function useApiErrorHandler() {
 
       if (apiError.sessionExpired) {
         addToastMessage("error", apiError.message);
-        router.push(SIGN_IN_PATH);
+        router.push(sessionEndedSignInPath());
         return apiError;
       }
 
