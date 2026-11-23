@@ -5,11 +5,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   Suspense,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,6 +34,7 @@ import { Container } from "@/app/features/landing/ui/primitives";
 import { useToast } from "@/app/features/toast/hooks/useToast";
 import {
   SIGN_IN_PATH,
+  sessionEndedSignInPath,
   useApiErrorHandler,
 } from "@/app/shared/hooks/useApiErrorHandler";
 import { isAbortError, toApiError } from "@/app/shared/utils/errors/apiError";
@@ -73,6 +76,14 @@ const rememberAccess = (access: OrganizationAccess) => {
     window.localStorage.setItem(ACCESS_KEY, access);
   } catch {
     // Storage blocked (private window…): the tab just shows by default.
+  }
+};
+
+const forgetAccess = () => {
+  try {
+    window.localStorage.removeItem(ACCESS_KEY);
+  } catch {
+    // Storage blocked: nothing was remembered.
   }
 };
 
@@ -244,9 +255,8 @@ const NavList = ({
 
 /**
  * Frame around every console screen: a left sidebar (a drawer below lg) and
- * the session check. The screen itself is always rendered (Next prerenders it
- * as part of the shell); it shows its own skeleton through <SignedIn> until
- * the user is known.
+ * the session check. Nothing of the console shows until `/api/auth/me` has
+ * confirmed the session: the proxy only looks at whether cookies exist.
  */
 export const ConsoleShell = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
@@ -256,12 +266,16 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
   const [signingOut, setSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [access, setAccess] = useState<OrganizationAccess>("unknown");
+  const sessionCheck = useRef<AbortController | null>(null);
+  // Stops a roles request still in flight at logout from re-saving them.
+  const signedOut = useRef(false);
 
   // Roles decide whether Organizations shows. If the list can't be read,
   // fall back to showing it: the backend still refuses what isn't allowed.
   const loadAccess = useCallback(async () => {
     try {
       const organizations = await organizationsApi.list();
+      if (signedOut.current) return;
       const next: OrganizationAccess =
         organizations.length === 0
           ? "none"
@@ -288,7 +302,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
         if (apiError.status === 401) {
           // Not signed in (or the session ended): the console is private.
           addToastMessage("info", "Sign in to open the console.");
-          router.replace(SIGN_IN_PATH);
+          router.replace(sessionEndedSignInPath());
           return;
         }
         setSession({ status: "error", message: apiError.message });
@@ -297,22 +311,61 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
     [addToastMessage, router, loadAccess],
   );
 
-  useEffect(() => {
+  // The one session check: a newer run cancels the one before it.
+  const checkSession = useCallback(() => {
+    sessionCheck.current?.abort();
     const controller = new AbortController();
+    sessionCheck.current = controller;
     void loadUser(controller.signal);
-    return () => controller.abort();
   }, [loadUser]);
+
+  useEffect(() => {
+    checkSession();
+
+    // Back/Forward can restore this page from the browser's memory without
+    // any request, so the proxy never sees it. Check the session again.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      signedOut.current = false;
+      setSigningOut(false);
+      setMenuOpen(false);
+      setSession({ status: "loading" });
+      checkSession();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      sessionCheck.current?.abort();
+    };
+  }, [checkSession]);
 
   const signOut = async () => {
     setSigningOut(true);
     try {
       await authApi.logout();
-      router.replace("/");
     } catch (error) {
       handleApiError(error);
       setSigningOut(false);
+      return;
     }
+    signedOut.current = true;
+    sessionCheck.current?.abort();
+    forgetAccess();
+    // Committed before leaving, so a copy of this page kept for Back holds
+    // no user data. A full load also empties Next's in-memory route cache.
+    flushSync(() => setSession({ status: "loading" }));
+    window.location.replace(SIGN_IN_PATH);
   };
+
+  if (session.status === "loading") {
+    return (
+      <div
+        role="status"
+        aria-label="Checking your session"
+        className="h-dvh bg-brand-wash"
+      />
+    );
+  }
 
   const user = session.status === "ready" ? session.user : null;
 
@@ -446,7 +499,7 @@ export const ConsoleShell = ({ children }: { children: ReactNode }) => {
                 message={session.message}
                 onRetry={() => {
                   setSession({ status: "loading" });
-                  void loadUser();
+                  checkSession();
                 }}
               />
             </Container>
