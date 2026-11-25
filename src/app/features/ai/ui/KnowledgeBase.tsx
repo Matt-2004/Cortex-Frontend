@@ -12,10 +12,7 @@ import {
   Type,
 } from "lucide-react";
 import { Container } from "@/app/features/landing/ui/primitives";
-import {
-  PageHeader,
-  SignedIn,
-} from "@/app/features/console/ui/ConsoleShell";
+import { PageHeader, SignedIn } from "@/app/features/console/ui/ConsoleShell";
 import {
   ErrorState,
   SearchInput,
@@ -29,6 +26,15 @@ import { AiApiError, deleteSource, listSources } from "../api/aiApi";
 import type { KnowledgeSource, SourceType } from "../types/ai.types";
 import { relativeTime } from "../utils/relativeTime";
 import { AddContentPanel } from "./AddContentPanel";
+import type { Organization } from "@/app/features/organizations/types/organization.types";
+import { useDocumentOrganizations } from "@/app/features/documents/hooks/useDocumentOrganizations";
+import { useOrganizationDocuments } from "@/app/features/documents/hooks/useOrganizationDocuments";
+import { DocumentsPanel } from "@/app/features/documents/ui/DocumentsPanel";
+import {
+  DocumentUploadTab,
+  DocumentUploadUnavailable,
+} from "@/app/features/documents/ui/DocumentUploadTab";
+import { OrganizationPicker } from "@/app/features/documents/ui/OrganizationPicker";
 
 const TYPE_META: Record<SourceType, { label: string; icon: typeof FileText }> =
   {
@@ -127,6 +133,11 @@ const Knowledge = () => {
     setType("all");
   };
 
+  // Uploaded files belong to an organization in the backend.
+  const organizations = useDocumentOrganizations();
+  const [uploading, setUploading] = useState(false);
+  const selected = organizations.selected;
+
   return (
     <>
       {header}
@@ -148,7 +159,44 @@ const Knowledge = () => {
           />
         </dl>
 
-        <AddContentPanel onAdded={refresh} />
+        {selected ? (
+          <OrganizationFiles
+            // A fresh mount per organization: never another one's files.
+            key={selected.id}
+            organization={selected}
+            onAiAdded={refresh}
+            onBusyChange={setUploading}
+            picker={
+              organizations.organizations.length > 1 && (
+                <OrganizationPicker
+                  organizations={organizations.organizations}
+                  selectedId={selected.id}
+                  onSelect={organizations.select}
+                  disabled={uploading}
+                />
+              )
+            }
+          />
+        ) : (
+          <AddContentPanel
+            onAdded={refresh}
+            uploadTab={
+              <DocumentUploadUnavailable
+                status={
+                  organizations.resource.status === "ready"
+                    ? "none"
+                    : organizations.resource.status
+                }
+                message={
+                  organizations.resource.status === "error"
+                    ? organizations.resource.error.message
+                    : undefined
+                }
+                onRetry={organizations.retry}
+              />
+            }
+          />
+        )}
 
         {load.status === "error" ? (
           <ErrorState
@@ -242,7 +290,9 @@ const Knowledge = () => {
                         <span
                           className={clsx(
                             "tabular-nums",
-                            type === value ? "text-white/80" : "text-brand-ink-subtle",
+                            type === value
+                              ? "text-white/80"
+                              : "text-brand-ink-subtle",
                           )}
                         >
                           {n}
@@ -295,6 +345,44 @@ const Knowledge = () => {
           </Panel>
         )}
       </Container>
+    </>
+  );
+};
+
+/**
+ * Add content, with Upload files sending to `organization`, and the list of
+ * that organization's uploaded files. They share one documents state, so an
+ * upload shows in the list as soon as it settles.
+ */
+const OrganizationFiles = ({
+  organization,
+  onAiAdded,
+  onBusyChange,
+  picker,
+}: {
+  organization: Organization;
+  onAiAdded: () => void;
+  onBusyChange: (busy: boolean) => void;
+  picker: React.ReactNode;
+}) => {
+  const documents = useOrganizationDocuments(organization);
+  return (
+    <>
+      <AddContentPanel
+        onAdded={onAiAdded}
+        uploadTab={
+          <DocumentUploadTab
+            organization={organization}
+            onSettled={documents.refresh}
+            onBusyChange={onBusyChange}
+          />
+        }
+      />
+      <DocumentsPanel
+        organization={organization}
+        documents={documents}
+        picker={picker}
+      />
     </>
   );
 };

@@ -1,36 +1,11 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
-import {
-  CheckCircle2,
-  FileText,
-  Globe,
-  Loader2,
-  Type,
-  UploadCloud,
-  XCircle,
-} from "lucide-react";
-import { addText, addUrl, AiApiError, uploadDocument } from "../api/aiApi";
-
-const ACCEPT = ".pdf,.txt,.md,.html,.htm";
-const ACCEPTED_EXTENSIONS = ["pdf", "txt", "md", "html", "htm"];
-const MAX_BYTES = 20 * 1024 * 1024;
+import { Globe, Loader2, Type, UploadCloud } from "lucide-react";
+import { addText, addUrl, AiApiError } from "../api/aiApi";
 
 type Tab = "upload" | "url" | "text";
-
-interface UploadItem {
-  key: string;
-  name: string;
-  size: number;
-  status: "queued" | "uploading" | "done" | "error";
-  message?: string;
-}
-
-const formatBytes = (bytes: number) =>
-  bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 const errorMessage = (error: unknown) =>
   error instanceof AiApiError
@@ -43,7 +18,18 @@ const inputClass =
 const primaryButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-control bg-brand-teal px-4 py-2.5 text-sm font-semibold text-brand-ink transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-50";
 
-export const AddContentPanel = ({ onAdded }: { onAdded: () => void }) => {
+/**
+ * Upload files goes to the Cortex backend (documents of an organization) and
+ * comes in as `uploadTab`; Web page and Paste text still go to the AI service.
+ */
+export const AddContentPanel = ({
+  onAdded,
+  uploadTab,
+}: {
+  /** After a web page or text was added to the AI service. */
+  onAdded: () => void;
+  uploadTab: ReactNode;
+}) => {
   const [tab, setTab] = useState<Tab>("upload");
   const tabsId = useId();
 
@@ -102,184 +88,29 @@ export const AddContentPanel = ({ onAdded }: { onAdded: () => void }) => {
         </div>
       </div>
 
+      {/* Hidden, not unmounted, on the other tabs: unmounting would cancel
+          the uploads in progress. */}
       <div
         role="tabpanel"
-        id={`${tabsId}-panel-${tab}`}
-        aria-labelledby={`${tabsId}-tab-${tab}`}
+        id={`${tabsId}-panel-upload`}
+        aria-labelledby={`${tabsId}-tab-upload`}
+        hidden={tab !== "upload"}
         className="p-5"
       >
-        {tab === "upload" && <UploadTab onAdded={onAdded} />}
-        {tab === "url" && <UrlTab onAdded={onAdded} />}
-        {tab === "text" && <TextTab onAdded={onAdded} />}
+        {uploadTab}
       </div>
-    </section>
-  );
-};
-
-// ── Upload ───────────────────────────────────────────────────────────
-
-const UploadTab = ({ onAdded }: { onAdded: () => void }) => {
-  const [items, setItems] = useState<UploadItem[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const busyRef = useRef(false);
-  const queueRef = useRef<{ key: string; file: File }[]>([]);
-  const inputId = useId();
-
-  const update = (key: string, patch: Partial<UploadItem>) =>
-    setItems((prev) =>
-      prev.map((it) => (it.key === key ? { ...it, ...patch } : it)),
-    );
-
-  // Upload one at a time: indexing is CPU-heavy on the AI side.
-  const drain = async () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    while (queueRef.current.length) {
-      const { key, file } = queueRef.current.shift()!;
-      update(key, { status: "uploading" });
-      try {
-        const res = await uploadDocument(file);
-        update(key, {
-          status: "done",
-          message: `${res.chunks} chunk${res.chunks === 1 ? "" : "s"} indexed`,
-        });
-        onAdded();
-      } catch (error) {
-        update(key, { status: "error", message: errorMessage(error) });
-      }
-    }
-    busyRef.current = false;
-  };
-
-  const addFiles = (files: FileList | File[]) => {
-    const next: UploadItem[] = [];
-    for (const file of Array.from(files)) {
-      const key = `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`;
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      let problem: string | undefined;
-      if (!ACCEPTED_EXTENSIONS.includes(ext))
-        problem = "Unsupported type. Use PDF, TXT, MD or HTML.";
-      else if (file.size === 0) problem = "This file is empty.";
-      else if (file.size > MAX_BYTES) problem = "Larger than 20 MB.";
-
-      next.push({
-        key,
-        name: file.name,
-        size: file.size,
-        status: problem ? "error" : "queued",
-        message: problem,
-      });
-      if (!problem) queueRef.current.push({ key, file });
-    }
-    setItems((prev) => [...next, ...prev].slice(0, 20));
-    void drain();
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <label
-        htmlFor={inputId}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-        }}
-        className={clsx(
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-control border border-dashed px-6 py-10 text-center transition-colors",
-          "focus-within:border-primary-700",
-          dragging
-            ? "border-primary-700 bg-brand-wash"
-            : "border-brand-ink/20 bg-brand-wash/40 hover:border-brand-ink/35",
-        )}
-      >
-        <UploadCloud aria-hidden="true" className="h-8 w-8 text-primary-700" />
-        <span className="text-sm font-medium text-brand-ink">
-          Drop files here or{" "}
-          <span className="text-primary-700 underline underline-offset-4">
-            browse
-          </span>
-        </span>
-        <span className="text-xs text-brand-ink-subtle">
-          PDF, TXT, Markdown or HTML · up to 20 MB each
-        </span>
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="file"
-          multiple
-          accept={ACCEPT}
-          className="sr-only"
-          onChange={(e) => {
-            if (e.target.files?.length) addFiles(e.target.files);
-            e.target.value = ""; // allow re-selecting the same file
-          }}
-        />
-      </label>
-
-      {items.length > 0 && (
-        <ul
-          aria-label="Uploads"
-          aria-live="polite"
-          className="flex flex-col divide-y divide-brand-ink/10 rounded-control border border-brand-ink/10"
+      {tab !== "upload" && (
+        <div
+          role="tabpanel"
+          id={`${tabsId}-panel-${tab}`}
+          aria-labelledby={`${tabsId}-tab-${tab}`}
+          className="p-5"
         >
-          {items.map((it) => (
-            <li
-              key={it.key}
-              className="flex items-center gap-3 px-3 py-2.5 text-sm"
-            >
-              <FileText
-                aria-hidden="true"
-                className="h-4 w-4 shrink-0 text-brand-ink-subtle"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-brand-ink">{it.name}</p>
-                <p
-                  className={clsx(
-                    "text-xs",
-                    it.status === "error" ? "text-[#B42318]" : "text-brand-ink-subtle",
-                  )}
-                >
-                  {it.status === "queued" &&
-                    `Waiting · ${formatBytes(it.size)}`}
-                  {it.status === "uploading" && "Uploading and indexing…"}
-                  {(it.status === "done" || it.status === "error") &&
-                    it.message}
-                </p>
-              </div>
-              {it.status === "uploading" && (
-                <Loader2
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin text-primary-700"
-                />
-              )}
-              {it.status === "done" && (
-                <CheckCircle2
-                  aria-label="Done"
-                  className="h-4 w-4 text-primary-700"
-                />
-              )}
-              {it.status === "error" && (
-                <XCircle
-                  aria-label="Failed"
-                  className="h-4 w-4 text-[#B42318]"
-                />
-              )}
-            </li>
-          ))}
-        </ul>
+          {tab === "url" && <UrlTab onAdded={onAdded} />}
+          {tab === "text" && <TextTab onAdded={onAdded} />}
+        </div>
       )}
-      <p className="text-xs text-brand-ink-subtle">
-        Large PDFs can take a minute: every page is split into chunks and
-        embedded. Scanned (image-only) PDFs have no text and can&apos;t be
-        indexed.
-      </p>
-    </div>
+    </section>
   );
 };
 
