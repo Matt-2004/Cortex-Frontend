@@ -75,6 +75,14 @@ export const DocumentsPanel = ({
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState<OrganizationDocument | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  // Documents the backend said are gone (deleted, or 404). They leave the
+  // table at once instead of after the reload, and a reload that fails or
+  // answers late can't bring them back from the list on screen. Ids are
+  // never reused, so this can't hide a real document. Memory only: a page
+  // reload starts from the backend's list again.
+  const [gone, setGone] = useState<ReadonlySet<string>>(() => new Set());
+  const markGone = (documentId: string) =>
+    setGone((prev) => new Set(prev).add(documentId));
 
   const refreshByHand = async () => {
     setRefreshing(true);
@@ -94,6 +102,7 @@ export const DocumentsPanel = ({
         onStatus: {
           404: () => {
             addToastMessage("error", `${document.fileName} no longer exists.`);
+            markGone(document.id);
             void refresh();
             return true;
           },
@@ -110,7 +119,10 @@ export const DocumentsPanel = ({
     }
   };
 
-  const rows = resource.status === "ready" ? resource.data : [];
+  const rows =
+    resource.status === "ready"
+      ? resource.data.filter((document) => !gone.has(document.id))
+      : [];
   const subscription = usage.status === "ready" ? usage.data : null;
 
   return (
@@ -228,7 +240,11 @@ export const DocumentsPanel = ({
           organizationId={organizationId}
           document={deleting}
           onClose={() => setDeleting(null)}
-          onDeleted={refresh}
+          onDeleted={(documentId) => {
+            markGone(documentId);
+            // In the background: the row is already gone, and usage updates.
+            void refresh();
+          }}
         />
       )}
     </>
@@ -340,7 +356,8 @@ const DeleteDocumentModal = ({
   /** The document to delete; null keeps the dialog closed. */
   document: OrganizationDocument | null;
   onClose: () => void;
-  onDeleted: () => Promise<unknown>;
+  /** The backend confirmed the document is gone. */
+  onDeleted: (documentId: string) => void;
 }) => {
   const { addToastMessage } = useToast();
   const handleApiError = useApiErrorHandler();
@@ -351,7 +368,7 @@ const DeleteDocumentModal = ({
     setBusy(true);
     try {
       await documentsApi.remove(organizationId, document.id);
-      await onDeleted();
+      onDeleted(document.id);
       addToastMessage("success", `${document.fileName} was deleted.`);
       onClose();
     } catch (caught) {
@@ -363,7 +380,7 @@ const DeleteDocumentModal = ({
               "info",
               `${document.fileName} was already deleted.`,
             );
-            void onDeleted();
+            onDeleted(document.id);
             onClose();
             return true;
           },

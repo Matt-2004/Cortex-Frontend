@@ -200,8 +200,13 @@ const Knowledge = () => {
 
         {load.status === "error" ? (
           <ErrorState
-            title="The knowledge base could not be loaded"
-            message={load.message}
+            title="The assistant's knowledge base (AI service) could not be loaded"
+            // Uploaded files come from the Cortex backend, not the AI service.
+            message={
+              selected
+                ? `${load.message} Uploaded files above are not affected.`
+                : load.message
+            }
             onRetry={retry}
           />
         ) : (
