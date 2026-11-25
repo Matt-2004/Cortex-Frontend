@@ -5,6 +5,7 @@ import Link from "next/link";
 import { clsx } from "clsx";
 import { CheckCircle2, FileText, UploadCloud, X, XCircle } from "lucide-react";
 import { useApiErrorHandler } from "@/app/shared/hooks/useApiErrorHandler";
+import { useToast } from "@/app/features/toast/hooks/useToast";
 import type { ApiError } from "@/app/shared/utils/errors/apiError";
 import {
   canManage,
@@ -29,13 +30,17 @@ import {
   type StartUploadRequest,
 } from "../types/document.types";
 import { describeFile } from "../utils/documentFiles";
-import { documentStatusLabel } from "./DocumentStatusBadge";
 
 const HINT = `PDF, Word (.docx), TXT, Markdown or CSV · up to ${formatBytes(DOCUMENT_RULES.maxFileSizeBytes)} each`;
 
 // The list under the drop zone keeps the most recent files only.
 const MAX_ITEMS = 20;
 
+/**
+ * One line of this tab's upload log. It only lives as long as the page: the
+ * Uploaded files table (loaded from the backend) is the record of what was
+ * uploaded, so a finished upload leaves the log once the table shows it.
+ */
 interface UploadItem {
   key: string;
   name: string;
@@ -46,13 +51,20 @@ interface UploadItem {
   planLimit?: boolean;
 }
 
-type Queued = { key: string; file: File; request: StartUploadRequest };
+type Queued = {
+  key: string;
+  file: File;
+  request: StartUploadRequest;
+  signature: string;
+};
+
+/** The same file picked twice gives the same signature. */
+const signatureOf = (file: File) =>
+  `${file.name}|${file.size}|${file.lastModified}`;
 
 /** What the backend's refusal means here, in one line. */
 const failureMessage = (error: ApiError) =>
   error.hasFieldErrors ? Object.values(error.fieldErrors)[0] : error.message;
-
-let nextKey = 0;
 
 /**
  * The "Upload files" tab of the Knowledge base: files go to the backend
@@ -74,11 +86,14 @@ export const DocumentUploadTab = ({
   onBusyChange: (busy: boolean) => void;
 }) => {
   const handleApiError = useApiErrorHandler();
+  const { addToastMessage } = useToast();
   const { state, upload, cancel } = useDocumentUpload(organization.id);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const queue = useRef<Queued[]>([]);
-  const activeKey = useRef<string | null>(null);
+  // Keys for log lines; only read in event handlers, never while rendering.
+  const nextKey = useRef(0);
+  const active = useRef<{ key: string; signature: string } | null>(null);
   const running = useRef(false);
   const inputId = useId();
 
@@ -95,24 +110,33 @@ export const DocumentUploadTab = ({
     setItems((prev) =>
       prev.map((item) => (item.key === key ? { ...item, ...patch } : item)),
     );
+  const dismiss = (key: string) =>
+    setItems((prev) => prev.filter((item) => item.key !== key));
 
   const drain = async () => {
     if (running.current) return;
     running.current = true;
     onBusyChange(true);
     while (queue.current.length) {
-      const { key, file, request } = queue.current.shift()!;
-      activeKey.current = key;
+      const { key, file, request, signature } = queue.current.shift()!;
+      active.current = { key, signature };
       update(key, { status: "active" });
       const outcome = await upload(file, request);
-      activeKey.current = null;
+      active.current = null;
 
       if (outcome.kind === "done") {
         update(key, {
           status: "done",
-          message: `Uploaded · ${documentStatusLabel(outcome.document.status)}`,
+          message: "Uploaded. Updating the list…",
         });
-      } else if (outcome.kind === "cancelled") {
+        // The table, reloaded from the backend, is the record from here on:
+        // it shows the document with the status the backend gave it.
+        await onSettled();
+        dismiss(key);
+        addToastMessage("success", `File uploaded successfully: ${file.name}`);
+        continue;
+      }
+      if (outcome.kind === "cancelled") {
         update(key, { status: "cancelled", message: "Cancelled" });
       } else {
         update(key, {
@@ -138,7 +162,7 @@ export const DocumentUploadTab = ({
   const addFiles = (files: FileList | File[]) => {
     const added: UploadItem[] = [];
     for (const file of Array.from(files)) {
-      const key = `upload-${(nextKey += 1)}`;
+      const key = `upload-${(nextKey.current += 1)}`;
       const described = describeFile(file);
       if ("problem" in described) {
         added.push({
@@ -148,17 +172,35 @@ export const DocumentUploadTab = ({
           status: "invalid",
           message: described.problem,
         });
+      } else if (isWaitingOrUploading(signatureOf(file))) {
+        // Picked or dropped again while still on its way: send it once.
+        added.push({
+          key,
+          name: file.name,
+          size: file.size,
+          status: "invalid",
+          message: "Already uploading. Skipped this copy.",
+        });
       } else {
         added.push({ key, name: file.name, size: file.size, status: "queued" });
-        queue.current.push({ key, file, request: described.request });
+        queue.current.push({
+          key,
+          file,
+          request: described.request,
+          signature: signatureOf(file),
+        });
       }
     }
     setItems((prev) => [...added.reverse(), ...prev].slice(0, MAX_ITEMS));
     void drain();
   };
 
+  const isWaitingOrUploading = (signature: string) =>
+    active.current?.signature === signature ||
+    queue.current.some((entry) => entry.signature === signature);
+
   const stop = (key: string) => {
-    if (activeKey.current === key) {
+    if (active.current?.key === key) {
       cancel();
       return;
     }
@@ -236,6 +278,7 @@ export const DocumentUploadTab = ({
                   : null
               }
               onStop={() => stop(item.key)}
+              onDismiss={() => dismiss(item.key)}
             />
           ))}
         </ul>
@@ -297,15 +340,18 @@ const UploadRow = ({
   progress,
   billingHref,
   onStop,
+  onDismiss,
 }: {
   item: UploadItem;
   /** The upload's live state, for the file being sent now. */
   progress: UploadState | null;
   billingHref: string | null;
   onStop: () => void;
+  onDismiss: () => void;
 }) => {
   const failed = item.status === "failed" || item.status === "invalid";
   const stoppable = item.status === "queued" || item.status === "active";
+  const dismissable = failed || item.status === "cancelled";
   const percent =
     progress?.phase === "uploading" && progress.total > 0
       ? Math.min(100, Math.round((progress.sent / progress.total) * 100))
@@ -378,12 +424,12 @@ const UploadRow = ({
       {failed && (
         <XCircle aria-label="Failed" className="h-4 w-4 text-status-error" />
       )}
-      {stoppable && (
+      {(stoppable || dismissable) && (
         <button
           type="button"
-          onClick={onStop}
-          aria-label={`Cancel ${item.name}`}
-          title="Cancel"
+          onClick={stoppable ? onStop : onDismiss}
+          aria-label={`${stoppable ? "Cancel" : "Dismiss"} ${item.name}`}
+          title={stoppable ? "Cancel" : "Dismiss"}
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-brand-ink-muted transition-colors hover:bg-brand-wash hover:text-brand-ink"
         >
           <X aria-hidden="true" className="h-4 w-4" />
